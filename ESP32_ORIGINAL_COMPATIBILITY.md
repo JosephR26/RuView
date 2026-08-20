@@ -25,8 +25,8 @@ guards, so excluding them costs nothing and breaks nothing upstream.
 
 The honest caveats are in §6 (limitations). §8 now carries **measured** answers to
 the questions the audit could not close on paper: the DSP fits with 137 KB of heap
-to spare, the build links within IRAM, and the radio sustains **11.9 Hz** rather
-than the S3's ~20 Hz. Three genuine defects that affect *every* target were found
+to spare, the build links within IRAM, and the radio sustains **11.9-20.0 Hz**
+depending on ambient traffic — a ~2x swing that is itself a finding. Three genuine defects that affect *every* target were found
 along the way — see §7 — and one of them, `first_word_invalid`, turns out to fire
 on **100 % of frames** on this hardware.
 
@@ -498,22 +498,37 @@ console logs stay local per §7 of the Phase 3 procedure. Reproduce with
 |---|---|---|---|
 | 1 | Free DRAM after Wi-Fi + CSI + DSP init? | **136 824 B low-water**, 142 456 B free, slope −0.3 B/s over 600 s | Comfortable. The §4.2 estimate held. |
 | 2 | Does it link within IRAM with `EXTRA_IRAM_OPT=y`? | Yes — no overflow, image 893 856 B, 53 % partition slack | The flagged risk did not materialise. |
-| 3 | Achievable CSI frame rate? | **11.90 Hz sustained** (9.9–13.0 Hz), Nyquist ceiling **5.95 Hz** | Lower than the S3's ~20 Hz. See below. |
+| 3 | Achievable CSI frame rate? | **Varies ~2x with conditions.** 11.90 Hz over the Stage A soak; **19.99 Hz** over a 15-min empty-house capture (17 994 frames). Nyquist ceiling 5.95 Hz and 10.0 Hz respectively. | Not a single number — see 8.1. |
 | 4 | Does the `wDev_ProcessFiq` crash reproduce? | 0 reboots in 600 s | Provisionally clear; needs the 24 h soak. |
 | 5 | How often is `first_word_invalid` set? | **100.0 % of frames (7047/7047)** | Far worse than assumed. See below. |
 | 6 | Does variance separate occupied from empty? | Still open | Stage B. |
 
-### 8.1 The rate is ~12 Hz, and roughly half of it is thrown away by us
+### 8.1 The rate is not a constant, and we discard a third to a half of it
 
-The radio delivers about **23 callbacks/second**; the firmware's early rate gate
-(`CSI_MIN_PROCESS_INTERVAL_US`) discards roughly half — measured `cb=7047` against
-`drop=8534` over the same window. So 11.9 Hz is a *firmware policy* number, not a
-hardware ceiling.
+**Do not quote a single figure.** Two measurements on the same board, same
+position, same AP, hours apart:
 
-That gate exists to prevent the RuView#396 SPI-cache crash, so it is not free to
-raise. But it means the Nyquist ceiling of 5.95 Hz is self-imposed and there is
-probably headroom if a soak test shows the original ESP32 does not reproduce #396.
-That is a measurement to run, not an assumption to act on.
+| Capture | Duration | Sustained rate | Nyquist ceiling |
+|---|---:|---:|---:|
+| Stage A soak (occupants home) | 600 s | **11.90 Hz** | 5.95 Hz |
+| `empty-baseline` (house empty) | 900 s | **19.99 Hz** | 10.0 Hz |
+
+That is a ~2x swing from environment alone. The likeliest cause is ambient
+802.11 traffic: CSI only exists when frames arrive, so a quieter local spectrum
+means *more* frames reach the sniffer, not fewer. The `adaptive_controller`
+(ADR-081) also adjusts radio configuration at runtime and may contribute.
+
+Underneath both figures, the firmware's early rate gate
+(`CSI_MIN_PROCESS_INTERVAL_US`) is discarding a large fraction: `cb=7047` against
+`drop=8534` in Stage A, `cb=73456` against `drop=24614` during the baseline. So
+neither number is a hardware ceiling — both are firmware policy. That gate exists
+to prevent the RuView#396 SPI-cache crash, so raising it needs a soak test rather
+than an assumption.
+
+**Consequence for Stage B:** if the CSI rate differs systematically between empty
+and occupied runs, that alone shifts any fixed-duration-window statistic, entirely
+independently of whether a person is present. It is a confound to check across the
+run set, not to assume away.
 
 ### 8.2 `first_word_invalid` is set on every single frame
 
