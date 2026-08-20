@@ -92,6 +92,10 @@ typedef struct {
     uint8_t            mac[6];
     int16_t            len;     /**< Length of the I/Q buffer in bytes. */
     int8_t            *buf;     /**< Pointer to I/Q data. */
+    /* Hardware limitation flag: when true the first four bytes of buf are
+     * invalid. Real ESP-IDF sets this; csi_serialize_frame reports it in
+     * ADR-018 byte 19 bit 5, so the fuzz harness needs the field to build. */
+    bool               first_word_invalid;
 } wifi_csi_info_t;
 
 /* ---- Kconfig defaults ---- */

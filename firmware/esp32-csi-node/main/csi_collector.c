@@ -119,8 +119,12 @@ static esp_timer_handle_t s_hop_timer = NULL;
  *   [12..15] Sequence number (LE u32)
  *   [16]     RSSI (i8)
  *   [17]     Noise floor (i8)
- *   [18..19] Reserved
- *   [20..]   I/Q data (raw bytes from ESP-IDF callback)
+ *   [18]     PPDU type (ADR-110; 0 when CONFIG_CSI_FRAME_HE_TAGGING is off)
+ *   [19]     Flags — bit 0 bw40, bit 2 STBC, bit 4 cross-node sync valid,
+ *            bit 5 first_word_invalid (bins 0-1 are hardware-invalid).
+ *            See CSI_FLAG_* in csi_collector.h. Unset bits read as zero, so
+ *            readers that predate a flag are unaffected.
+ *   [20..]   I/Q data (raw bytes from ESP-IDF callback, imag then real per bin)
  */
 size_t csi_serialize_frame(const wifi_csi_info_t *info, uint8_t *buf, size_t buf_len)
 {
@@ -191,6 +195,27 @@ size_t csi_serialize_frame(const wifi_csi_info_t *info, uint8_t *buf, size_t buf
      * Byte-18 PPDU type encoding stays the same across targets:
      *   0=HT/legacy bucket, 1=HE-SU, 2=HE-MU, 3=HE-TB, 0xFF=unknown
      */
+
+    /* Byte 19 bit 5 — first_word_invalid.
+     *
+     * ESP-IDF sets wifi_csi_info_t.first_word_invalid when the first four
+     * bytes of the CSI payload are hardware-invalid. The ESP-IDF Wi-Fi guide
+     * documents this as a hardware limitation and it is most commonly seen on
+     * the original ESP32. Prior to this change the flag was dropped on the
+     * floor everywhere in the tree, so those two bins reached consumers
+     * indistinguishable from real channel data — and because they sit at a
+     * fixed index, they biased the per-subcarrier variance that the presence
+     * heuristic thresholds on.
+     *
+     * Deliberately NOT fixed by trimming the payload: that would shift every
+     * subcarrier index by two and silently break every existing host parser.
+     * The payload stays verbatim, the byte-6 subcarrier count stays the same,
+     * and consumers are told which bins to ignore.
+     *
+     * Computed outside the CONFIG_CSI_FRAME_HE_TAGGING guard below so the flag
+     * is reported even in builds that leave PPDU tagging off. */
+    const uint8_t fwi_bit = info->first_word_invalid ? CSI_FLAG_FIRST_WORD_INVALID : 0u;
+
 #ifdef CONFIG_CSI_FRAME_HE_TAGGING
     uint8_t ppdu_type = 0xFF;
     uint8_t flags     = 0;
@@ -231,10 +256,10 @@ size_t csi_serialize_frame(const wifi_csi_info_t *info, uint8_t *buf, size_t buf
 #endif
     if (c6_sync_espnow_is_valid()) flags |= (1 << 4);  /* ESP-NOW sync valid (D1 workaround) */
     buf[18] = ppdu_type;
-    buf[19] = flags;
+    buf[19] = flags | fwi_bit;
 #else
     buf[18] = 0;
-    buf[19] = 0;
+    buf[19] = fwi_bit;
 #endif
 
     /* I/Q data */
@@ -300,10 +325,14 @@ static void wifi_csi_callback(void *ctx, wifi_csi_info_t *info)
         }
     }
 
-    /* ADR-039: Enqueue raw I/Q into edge processing ring buffer. */
+    /* ADR-039: Enqueue raw I/Q into edge processing ring buffer.
+     * Pass first_word_invalid through so the DSP can exclude the two
+     * hardware-invalid bins from variance and phase instead of treating
+     * them as channel data. */
     if (info->buf && info->len > 0) {
-        edge_enqueue_csi((const uint8_t *)info->buf, (uint16_t)info->len,
-                         (int8_t)info->rx_ctrl.rssi, info->rx_ctrl.channel);
+        edge_enqueue_csi_ex((const uint8_t *)info->buf, (uint16_t)info->len,
+                            (int8_t)info->rx_ctrl.rssi, info->rx_ctrl.channel,
+                            info->first_word_invalid);
     }
 
     /* ADR-110 §A0.11/§A0.12 — Emit a sync-packet every N CSI frames so the

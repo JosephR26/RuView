@@ -101,6 +101,7 @@ typedef struct {
     int8_t   rssi;                       /**< RSSI from rx_ctrl. */
     uint8_t  channel;                    /**< WiFi channel. */
     uint32_t timestamp_us;               /**< Microsecond timestamp. */
+    bool     first_word_invalid;         /**< Bins 0-1 are hardware-invalid. */
 } edge_ring_slot_t;
 
 /* ---- SPSC ring buffer ---- */
@@ -229,6 +230,41 @@ esp_err_t edge_processing_init(const edge_config_t *cfg);
  */
 bool edge_enqueue_csi(const uint8_t *iq_data, uint16_t iq_len,
                       int8_t rssi, uint8_t channel);
+
+/**
+ * Enqueue a CSI frame, carrying the ESP-IDF `first_word_invalid` flag.
+ *
+ * Identical to edge_enqueue_csi() except that when @p first_word_invalid is
+ * true the DSP excludes the first CSI_FIRST_WORD_INVALID_BINS subcarrier bins
+ * from phase extraction, variance accumulation and top-K selection. Those
+ * bytes are hardware-invalid (a documented ESP-IDF limitation, most often seen
+ * on the original ESP32) and, sitting at a fixed index, would otherwise bias
+ * the variance that the presence heuristic thresholds on.
+ *
+ * The exclusion is sticky for the lifetime of the session: once a bin has been
+ * seen as invalid it stays excluded, and its accumulated statistics are reset,
+ * so a bin cannot win top-K on the strength of garbage collected earlier.
+ *
+ * edge_enqueue_csi() remains as a wrapper passing false, so existing callers
+ * (mock_csi.c, host tests) are unaffected.
+ *
+ * @param iq_data            Raw I/Q data from wifi_csi_info_t.buf.
+ * @param iq_len             Length of I/Q data in bytes.
+ * @param rssi               RSSI from rx_ctrl.
+ * @param channel            WiFi channel number.
+ * @param first_word_invalid wifi_csi_info_t.first_word_invalid.
+ * @return true if enqueued, false if ring buffer is full (frame dropped).
+ */
+bool edge_enqueue_csi_ex(const uint8_t *iq_data, uint16_t iq_len,
+                         int8_t rssi, uint8_t channel,
+                         bool first_word_invalid);
+
+/**
+ * Number of leading subcarrier bins currently excluded because the hardware
+ * reported them invalid. 0 until a frame with first_word_invalid arrives.
+ * Exposed for diagnostics (csi_diag) and tests.
+ */
+uint16_t edge_get_skipped_subcarriers(void);
 
 /**
  * Get the latest vitals packet (thread-safe copy).
