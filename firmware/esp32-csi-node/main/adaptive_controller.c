@@ -158,7 +158,7 @@ static void apply_decision(const adapt_decision_t *dec)
     adapt_state_t prev = s_state;
 
     if (dec->change_state) {
-        ESP_LOGI(TAG, "state %u → %u",
+        ESP_LOGI(TAG, "state %u -> %u",
                  (unsigned)s_state, (unsigned)dec->new_state);
         s_state = (adapt_state_t)dec->new_state;
 
@@ -423,6 +423,6 @@ bool adaptive_controller_observation(adapt_observation_t *out)
 
 void adaptive_controller_force_state(adapt_state_t st)
 {
-    ESP_LOGI(TAG, "force state %u → %u", (unsigned)s_state, (unsigned)st);
+    ESP_LOGI(TAG, "force state %u -> %u", (unsigned)s_state, (unsigned)st);
     s_state = st;
 }

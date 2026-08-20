@@ -180,7 +180,7 @@ esp_err_t csi_diag_init(void)
         return err;
     }
 
-    ESP_LOGI(TAG, "diagnostics every %d ms → serial + UDP magic 0x%08X (%d B)",
+    ESP_LOGI(TAG, "diagnostics every %d ms -> serial + UDP magic 0x%08X (%d B)",
              (int)CONFIG_CSI_DIAG_INTERVAL_MS,
              (unsigned int)CSI_DIAG_MAGIC, (int)CSI_DIAG_PKT_SIZE);
     return ESP_OK;

@@ -226,7 +226,7 @@ void app_main(void)
 #else
     const char *target_name = "ESP32";
 #endif
-    ESP_LOGI(TAG, "%s CSI Node (ADR-018 / ADR-110) — v%s — Node ID: %d",
+    ESP_LOGI(TAG, "%s CSI Node (ADR-018 / ADR-110) - v%s - Node ID: %d",
              target_name, app_desc->version, g_nvs_config.node_id);
 
     /* Onboard WS2812. C6 wires the LED to GPIO 8; S3 to GPIO 38 (DevKitC-1 v1.0)
@@ -283,7 +283,7 @@ void app_main(void)
         }
 #endif /* CONFIG_LED_GAMMA_VIZ */
     } else {
-        ESP_LOGI(TAG, "No addressable onboard LED on this target — skipping WS2812 init");
+        ESP_LOGI(TAG, "No addressable onboard LED on this target - skipping WS2812 init");
     }
 
     /* ADR-110 P4: 802.15.4 mesh time-sync (C6 only).
@@ -528,7 +528,7 @@ void app_main(void)
         csi_collector_enable_data_capture();
     }
 
-    ESP_LOGI(TAG, "CSI streaming active → %s:%d (edge_tier=%u, OTA=%s, WASM=%s, mmWave=%s, swarm=%s, adapt=%s)",
+    ESP_LOGI(TAG, "CSI streaming active -> %s:%d (edge_tier=%u, OTA=%s, WASM=%s, mmWave=%s, swarm=%s, adapt=%s)",
              g_nvs_config.target_ip, g_nvs_config.target_port,
              g_nvs_config.edge_tier,
              (ota_ret == ESP_OK) ? "ready" : "off",
