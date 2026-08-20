@@ -1,8 +1,8 @@
-# ESP32 DevKitC-32 CSI port — proposed implementation
+# ESP32 DevKitC-32 CSI port — implementation
 
-**Status:** Proposal. Nothing here is implemented yet — this is the
-"explain the proposed changes" step before touching code.
+**Status:** Implemented. All six commits landed and CI-verified.
 **Prerequisite:** [`ESP32_ORIGINAL_COMPATIBILITY.md`](ESP32_ORIGINAL_COMPATIBILITY.md)
+**Next phase:** [`ESP32_PHASE3_VALIDATION.md`](ESP32_PHASE3_VALIDATION.md)
 **Branch:** `feat/esp32-original-csi-port`
 
 ---
@@ -24,9 +24,10 @@
 
 ---
 
-## 2. Proposed changes, in commit order
+## 2. Changes, in commit order
 
-Each of these is intended as one logical commit.
+Each of these landed as one logical commit. Snippets below are the shipped
+versions.
 
 ### Commit 1 — `sdkconfig.defaults.esp32` (new file)
 
@@ -50,8 +51,8 @@ CONFIG_ESP_WIFI_CSI_ENABLED=y
 # CONFIG_WASM_ENABLE is not set
 
 # Full clock for DSP headroom
-CONFIG_ESP32_DEFAULT_CPU_FREQ_240=y
-CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ=240
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ=240
 
 # Size optimisation — IRAM/flash are tighter here than on the S3
 CONFIG_COMPILER_OPTIMIZATION_SIZE=y
@@ -110,8 +111,8 @@ This needs the ADR-018 field table updating in the same commit.
 compatibility report §8. It is a new, self-contained file — no existing module
 changes — and it is what makes the first firmware genuinely useful.
 
-Emits one line per second over the serial console *and* one 48-byte UDP packet per
-second, containing only measured quantities:
+Emits one line per interval over the serial console *and* one 60-byte UDP packet
+(magic `0xC5111001`), containing only measured quantities:
 
 | Field | Type | Level |
 |---|---|---|
@@ -138,15 +139,21 @@ estimation.
 `.github/workflows/firmware-ci.yml`: add
 
 ```yaml
-- variant: 4mb
+- variant: esp32-4mb
   target: esp32
-  sdkconfig: "sdkconfig.defaults;sdkconfig.defaults.esp32"
+  sdkconfig: sdkconfig.defaults
   partition_table_name: partitions_4mb.csv
   size_warn_kb: 1000
-  size_limit_kb: 1400
-  artifact_app: esp32-csi-node.bin
-  artifact_pt: partition-table.bin
+  size_limit_kb: 1152
+  artifact_app: esp32-csi-node-esp32.bin
+  artifact_pt: partition-table-esp32.bin
 ```
+
+`sdkconfig.defaults.esp32` is picked up automatically from the target name, so
+the build step itself needed no change. Two supporting edits were required:
+staging `bootloader.bin` and `ota_data_initial.bin` for this variant (the
+bootloader is chip-specific, and **on the original ESP32 it flashes to 0x1000,
+not 0x0**), and running `test_fwi` on this job.
 
 Purely additive — the three existing rows are untouched, and `fail-fast: false` is
 already set, so an ESP32 build failure cannot mask an S3/C6 result.
@@ -434,17 +441,57 @@ demonstrated. Constraints already established:
 
 ---
 
-## 10. Approval checkpoint
+## 10. What was built, and what CI proved
 
-Before implementing, three decisions are worth confirming:
+All six commits landed. Firmware CI run
+[32387105968](https://github.com/JosephR26/RuView/actions/runs/32387105968)
+is green on all four targets.
 
-1. **Build path** — use the fork's GitHub Actions CI (recommended), or install
-   ESP-IDF / Docker locally?
-2. **Scope of commit 3** — fixing `first_word_invalid` changes the ADR-018 wire
-   format by one previously-reserved bit. Additive and backward-compatible, but it
-   touches a shared, upstream-owned format. Proceed, or keep the fix DSP-side only
-   and leave the wire format untouched?
-3. **Diagnostic packet magic** — I have proposed the fork-local `0xC5111001` rather
-   than extending upstream's `0xC51100xx` series, because that series already
-   contains a live collision (§4.3). Agree, or would you rather stay in the upstream
-   numbering for easier upstreaming later?
+| Target | Variant | Image | Partition slack |
+|---|---|---:|---:|
+| esp32s3 | 8mb | 1 127 440 B | — |
+| esp32s3 | 4mb | 911 504 B | — |
+| esp32c6 | c6-4mb | 1 051 248 B | — |
+| **esp32** | **esp32-4mb** | **893 856 B** | **53 % free** |
+
+What that does and does not establish:
+
+- **Establishes** that the original-ESP32 target compiles, links and produces a
+  valid image (esptool reports `Chip ID: 0 (ESP32)`, validation hash valid), that
+  it fits with wide margin, that IRAM did **not** overflow — the risk flagged in
+  the compatibility report §4.3 — and that the S3 and C6 targets still build.
+  The S3 8 MB image grew by 832 bytes; it was already over the 1100 KB soft
+  budget on upstream `main` (1 126 608 B) and remains under the 1152 KB hard gate.
+- **Establishes** that the `first_word_invalid` encoding and DSP exclusion behave
+  as specified — `test_first_word_invalid` runs in CI and passes.
+- **Does not establish anything about sensing, or about RAM at runtime.** A build
+  is not hardware evidence. Every runtime number in this document remains an
+  estimate until a boot log from real silicon exists. That is what
+  [`ESP32_PHASE3_VALIDATION.md`](ESP32_PHASE3_VALIDATION.md) Stage A is for.
+
+### 10.1 Decisions taken
+
+1. **Build path** — the fork's GitHub Actions CI, as recommended. No local
+   ESP-IDF or Docker was needed at any point.
+2. **`first_word_invalid`** — fixed properly, with the wire-format extension.
+   Byte 19 bit 5, payload untouched, subcarrier indexing unchanged.
+3. **Diagnostic magic** — `0xC5111001`, fork-local range.
+
+### 10.2 Two things found while implementing
+
+- **`provision.py --help` crashed on this machine.** The file contains em dashes
+  and arrows; a Windows console defaulting to cp1252 raises `UnicodeEncodeError`
+  before argparse finishes printing, and a provisioning run could fail *after*
+  writing to the device. Fixed with a two-line stream guard rather than rewriting
+  upstream text. `tools/csi-capture.py` hit the identical bug during testing and
+  is now pure ASCII with the same guard.
+
+- **The default UDP port is 5005**, not 5500 — `CONFIG_CSI_TARGET_PORT` and
+  `provision.py --target-port` agree on 5005; the fuzz harness's 5500 is a test
+  fixture. `csi-capture.py` defaults to 5005 to match the firmware.
+
+### 10.3 Not done, deliberately
+
+The CYD display HAL. Deferred until the sensing node has been demonstrated,
+per the phase ordering. §8 remains a sketch.
+

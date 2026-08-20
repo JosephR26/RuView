@@ -33,7 +33,7 @@ Usage:
 
     # Replay a recording at original timing to a local analysis process
     python tools/csi-capture.py replay data/phase3/empty-baseline-....rvcsi \\
-        --host 127.0.0.1 --port 5500
+        --host 127.0.0.1 --port 5005
 
     # Summarise a recording
     python tools/csi-capture.py info data/phase3/empty-baseline-....rvcsi
@@ -553,8 +553,9 @@ def main() -> int:
     sub = ap.add_subparsers(dest="command", required=True)
 
     def add_common(p: argparse.ArgumentParser) -> None:
-        p.add_argument("--port", type=int, default=5500,
-                       help="UDP port to listen on (default: 5500)")
+        p.add_argument("--port", type=int, default=5005,
+                       help="UDP port to listen on (default: 5005, matching "
+                            "CONFIG_CSI_TARGET_PORT and provision.py)")
         p.add_argument("--bind", default="0.0.0.0",
                        help="Address to bind (default: 0.0.0.0)")
 
@@ -583,7 +584,7 @@ def main() -> int:
     p_rep = sub.add_parser("replay", help="re-emit a recording over UDP")
     p_rep.add_argument("recording")
     p_rep.add_argument("--host", default="127.0.0.1")
-    p_rep.add_argument("--port", type=int, default=5500)
+    p_rep.add_argument("--port", type=int, default=5005)
     p_rep.add_argument("--speed", type=float, default=1.0,
                        help="playback rate multiplier (default: 1.0)")
     p_rep.add_argument("--fast", action="store_true",
