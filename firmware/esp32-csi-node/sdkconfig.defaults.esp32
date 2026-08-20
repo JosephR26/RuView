@@ -1,0 +1,83 @@
+# ESP32 (original / WROOM-32) CSI Node — Target overlay
+#
+# Auto-applied by ESP-IDF when CONFIG_IDF_TARGET=esp32, layered on top of
+# sdkconfig.defaults — only the differences live here. Same mechanism the
+# ESP32-C6 overlay uses (ESP-IDF auto-loads sdkconfig.defaults.$TARGET).
+#
+# Build:
+#   idf.py set-target esp32
+#   idf.py build
+#
+# Hardware: ESP32 DevKitC-32 / ESP32-WROOM-32 (ESP32-D0WD), 4 MB flash,
+# NO PSRAM, dual Xtensa LX6 @ 240 MHz with hardware single-precision FPU.
+#
+# NOTE ON NAMING: this file is deliberately NOT called anything containing
+# "devkitc". `sdkconfig.defaults.devkitc` in this directory is an
+# ESP32-**S3**-DevKitC-1 overlay and runs `set-target esp32s3`. Flashing an
+# S3 image to a DevKitC-32 (or vice versa) fails in confusing ways, so the
+# two names are kept clearly distinct.
+
+# ── Target ──
+CONFIG_IDF_TARGET="esp32"
+
+# ── Flash & partitions (4 MB — standard on WROOM-32 modules) ──
+# partitions_4mb.csv gives two 1.875 MB OTA slots. Its header comment says
+# "ESP32-S3" but the layout is target-neutral.
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions_4mb.csv"
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_ESPTOOLPY_FLASHSIZE="4MB"
+
+# ── CSI (required — the whole point of this target) ──
+# The original ESP32 has SOC_WIFI_CSI_SUPPORT=1 and, because it lacks
+# SOC_WIFI_HE_SUPPORT, selects the same legacy wifi_csi_config_t branch as
+# the ESP32-S3. csi_collector.c's existing `#else` path is already correct
+# for this chip — see ESP32_ORIGINAL_COMPATIBILITY.md §2.2.
+CONFIG_ESP_WIFI_CSI_ENABLED=y
+
+# ── Features that CANNOT run on a PSRAM-less WROOM-32 ──
+# Display (ADR-045): hard-coded for an SH8601 368x448 QSPI AMOLED on GPIO
+#   4-7/11/12 with FT3168 touch + TCA9554 expander. None of those pins or
+#   parts exist here, and LVGL framebuffers want PSRAM.
+# WASM (ADR-040): wasm_runtime.c allocates its module arenas with
+#   MALLOC_CAP_SPIRAM. With no PSRAM the allocation returns NULL and the
+#   runtime disables itself at boot — compiling it out saves the flash.
+# CONFIG_DISPLAY_ENABLE is not set
+# CONFIG_WASM_ENABLE is not set
+
+# ── Fork-local diagnostics (ESP32_CSI_PORT.md commit 4) ──
+# Per-second measured counters over serial + UDP. This is how the open
+# questions in ESP32_ORIGINAL_COMPATIBILITY.md §8 get answered from the
+# device itself rather than by estimation. Default-on for this target
+# because "measure before optimising" is the point of the port.
+CONFIG_CSI_DIAG_ENABLE=y
+CONFIG_CSI_DIAG_INTERVAL_MS=1000
+
+# ── CPU: full 240 MHz for DSP headroom ──
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ=240
+
+# ── Compiler ──
+# IRAM and flash are both tighter on the original ESP32 than on the S3.
+CONFIG_COMPILER_OPTIMIZATION_SIZE=y
+
+# ── Logging ──
+CONFIG_BOOTLOADER_LOG_LEVEL_WARN=y
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y
+
+# ── lwIP / FreeRTOS — inherited from sdkconfig.defaults ──
+# The enlarged UDP/TCPIP mboxes and WiFi dynamic TX buffers, the 8 KiB main
+# task stack and the 8 KiB timer task stack all carry over unchanged. They
+# were sized against a measured ENOMEM problem on S3+C6; the same CSI packet
+# rates apply here. Their heap cost is the main open question for this
+# target (ESP32_ORIGINAL_COMPATIBILITY.md §4.2) — csi_diag reports free heap
+# and minimum-free heap every second so we can measure it on first boot
+# rather than guess.
+
+# ── IRAM ──
+# CONFIG_ESP_WIFI_EXTRA_IRAM_OPT=y is inherited from sdkconfig.defaults
+# (defence-in-depth for the RuView#396 SPI cache race). The original ESP32
+# has less IRAM headroom than the S3, so this is the most likely cause of a
+# first-build link failure. Deliberately NOT pre-emptively disabled — if the
+# build overflows IRAM, turn it off HERE and re-measure, rather than
+# optimising before there is a measurement.
