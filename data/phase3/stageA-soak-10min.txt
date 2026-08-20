@@ -1,0 +1,84 @@
+listening on 0.0.0.0:5005 for 600s -- Ctrl-C to stop early
+
+  [   1] rate= 11.0Hz len=128 fwi=1592 heap=142592 min=138812 blk=110592
+  [  11] rate= 11.0Hz len=128 fwi=1709 heap=142592 min=138812 blk=110592
+  [  21] rate=  9.9Hz len=128 fwi=1824 heap=142592 min=138812 blk=110592
+  [  31] rate= 12.0Hz len=128 fwi=1941 heap=142592 min=138812 blk=110592
+  [  41] rate= 11.0Hz len=128 fwi=2057 heap=142592 min=138812 blk=110592
+  [  51] rate= 10.9Hz len=128 fwi=2172 heap=142600 min=138812 blk=110592
+  [  61] rate= 12.0Hz len=128 fwi=2287 heap=142600 min=138812 blk=110592
+  [  71] rate= 12.0Hz len=128 fwi=2409 heap=142600 min=138812 blk=110592
+  [  81] rate=  9.9Hz len=128 fwi=2521 heap=142600 min=138812 blk=110592
+  [  91] rate= 11.0Hz len=128 fwi=2639 heap=142600 min=138812 blk=110592
+  [ 101] rate= 11.0Hz len=128 fwi=2754 heap=142600 min=138812 blk=110592
+  [ 111] rate= 10.0Hz len=128 fwi=2871 heap=142600 min=138812 blk=110592
+  [ 121] rate= 12.0Hz len=128 fwi=2991 heap=142600 min=138812 blk=110592
+  [ 131] rate= 10.0Hz len=128 fwi=3103 heap=142600 min=138812 blk=110592
+  [ 141] rate= 11.0Hz len=128 fwi=3213 heap=142600 min=138812 blk=110592
+  [ 151] rate= 12.0Hz len=128 fwi=3336 heap=142600 min=138812 blk=110592
+  [ 161] rate= 17.0Hz len=128 fwi=3491 heap=142260 min=138812 blk=110592
+  [ 171] rate= 11.9Hz len=128 fwi=3620 heap=142456 min=136824 blk=110592
+  [ 181] rate= 15.9Hz len=128 fwi=3752 heap=142456 min=136824 blk=110592
+  [ 191] rate= 11.0Hz len=128 fwi=3869 heap=142456 min=136824 blk=110592
+  [ 201] rate= 12.0Hz len=128 fwi=3980 heap=142456 min=136824 blk=110592
+  [ 211] rate= 12.0Hz len=128 fwi=4097 heap=142456 min=136824 blk=110592
+  [ 221] rate= 11.9Hz len=128 fwi=4213 heap=142116 min=136824 blk=110592
+  [ 231] rate= 12.0Hz len=128 fwi=4326 heap=142456 min=136824 blk=110592
+  [ 241] rate= 13.0Hz len=128 fwi=4455 heap=142456 min=136824 blk=110592
+  [ 251] rate= 10.9Hz len=128 fwi=4594 heap=142116 min=136824 blk=110592
+  [ 261] rate= 12.0Hz len=128 fwi=4710 heap=142456 min=136824 blk=110592
+  [ 271] rate= 12.0Hz len=128 fwi=4830 heap=142456 min=136824 blk=110592
+  [ 281] rate= 10.9Hz len=128 fwi=4948 heap=142456 min=136824 blk=110592
+  [ 291] rate= 10.9Hz len=128 fwi=5063 heap=142456 min=136824 blk=110592
+  [ 301] rate= 13.0Hz len=128 fwi=5179 heap=142456 min=136824 blk=110592
+  [ 311] rate= 10.9Hz len=128 fwi=5293 heap=142456 min=136824 blk=110592
+  [ 321] rate= 12.0Hz len=128 fwi=5405 heap=142456 min=136824 blk=110592
+  [ 331] rate= 11.0Hz len=128 fwi=5522 heap=142456 min=136824 blk=110592
+  [ 341] rate= 10.9Hz len=128 fwi=5639 heap=142456 min=136824 blk=110592
+  [ 351] rate= 10.9Hz len=128 fwi=5755 heap=142456 min=136824 blk=110592
+  [ 361] rate= 11.0Hz len=128 fwi=5870 heap=142456 min=136824 blk=110592
+  [ 371] rate=  9.9Hz len=128 fwi=5986 heap=142456 min=136824 blk=110592
+  [ 381] rate= 12.0Hz len=128 fwi=6099 heap=142456 min=136824 blk=110592
+  [ 391] rate= 12.0Hz len=128 fwi=6213 heap=142456 min=136824 blk=110592
+  [ 401] rate= 10.9Hz len=128 fwi=6331 heap=142456 min=136824 blk=110592
+  [ 411] rate= 11.0Hz len=128 fwi=6448 heap=142456 min=136824 blk=110592
+  [ 421] rate= 11.0Hz len=128 fwi=6559 heap=142456 min=136824 blk=110592
+  [ 431] rate= 10.9Hz len=128 fwi=6679 heap=142456 min=136824 blk=110592
+  [ 441] rate= 12.0Hz len=128 fwi=6794 heap=142456 min=136824 blk=110592
+  [ 451] rate= 12.0Hz len=128 fwi=6912 heap=142456 min=136824 blk=110592
+  [ 461] rate= 10.0Hz len=128 fwi=7031 heap=142456 min=136824 blk=110592
+  [ 471] rate= 12.0Hz len=128 fwi=7149 heap=142456 min=136824 blk=110592
+  [ 481] rate= 11.0Hz len=128 fwi=7264 heap=142456 min=136824 blk=110592
+  [ 491] rate= 10.9Hz len=128 fwi=7386 heap=142456 min=136824 blk=110592
+  [ 501] rate= 12.0Hz len=128 fwi=7503 heap=142456 min=136824 blk=110592
+  [ 511] rate= 10.0Hz len=128 fwi=7613 heap=142276 min=136824 blk=110592
+  [ 521] rate= 11.9Hz len=128 fwi=7733 heap=142456 min=136824 blk=110592
+  [ 531] rate= 11.0Hz len=128 fwi=7849 heap=142456 min=136824 blk=110592
+  [ 541] rate= 11.0Hz len=128 fwi=7962 heap=142456 min=136824 blk=110592
+  [ 551] rate= 10.9Hz len=128 fwi=8075 heap=142456 min=136824 blk=110592
+  [ 561] rate= 12.0Hz len=128 fwi=8188 heap=142456 min=136824 blk=110592
+  [ 571] rate= 11.0Hz len=128 fwi=8305 heap=142456 min=136824 blk=110592
+  [ 581] rate= 12.0Hz len=128 fwi=8415 heap=142456 min=136824 blk=110592
+  [ 591] rate= 10.0Hz len=128 fwi=8534 heap=142456 min=136824 blk=110592
+
+========================================================================
+STAGE A GATE: PASS
+========================================================================
+  [PASS        ] A7  Does it stay up?
+                 0 reboot(s) detected over 599s (uptime 131s -> 730s)
+  [PASS        ] A1  Associated to the AP?
+                 wifi_connected true in 100.0% of samples
+  [PASS        ] A4  What CSI rate does the radio sustain?
+                 sustained 11.90 Hz; Nyquist ceiling 5.95 Hz
+  [PASS        ] A2  Does the working set fit in DRAM?
+                 low-water mark 136824 B, settled; free-heap slope -0.3 B/s
+  [PASS        ] A3  Is the heap fragmenting?
+                 largest block 110592 B (77.6% of free heap), slope +0.0 B/s
+  [PASS        ] A5  Which LTF fields does the link deliver?
+                 dominant raw CSI length 128 B (LLTF only (non-HT)), 3 distinct length(s)
+  [PASS        ] A6  Does the hardware flag invalid leading bins?
+                 first_word_invalid on 100.0% of frames (7047/7047); DSP excluding 2 bin(s)
+========================================================================
+Proceed to Stage B (ESP32_PHASE3_VALIDATION.md section 4).
+
+report written to data/phase3/stageA-soak-10min.json

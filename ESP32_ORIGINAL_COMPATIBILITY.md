@@ -1,6 +1,8 @@
 # RuView on the original ESP32 — compatibility assessment
 
-**Status:** Phase 1 audit complete. No firmware code changed yet.
+**Status:** Port implemented, CI-green, and **validated on real silicon**.
+Stage A gate PASSED on board `34:5f:45:aa:6f:8c` (ESP32-D0WD-V3 rev v3.1) —
+see §8 for the measurements.
 **Audited commit:** `a3b6e1d5` (fork of `ruvnet/RuView`, branch `main`)
 **Target hardware:** ESP32 DevKitC-32 (ESP32-WROOM-32, ESP32-D0WD, 4 MB flash, no PSRAM)
 **Secondary target:** ESP32-2432S028 "CYD" (ESP32-WROOM-32 + ILI9341 + XPT2046)
@@ -21,9 +23,12 @@ What is **not** portable is a well-bounded set: the AMOLED display stack, the WA
 runtime, and the ESP32-C6 radio extensions. All three are already behind compile-time
 guards, so excluding them costs nothing and breaks nothing upstream.
 
-The honest caveats are in §6 (limitations) and §8 (open questions I could not close
-without hardware). Two genuine defects that affect *every* target were found along the
-way — see §7.
+The honest caveats are in §6 (limitations). §8 now carries **measured** answers to
+the questions the audit could not close on paper: the DSP fits with 137 KB of heap
+to spare, the build links within IRAM, and the radio sustains **11.9 Hz** rather
+than the S3's ~20 Hz. Three genuine defects that affect *every* target were found
+along the way — see §7 — and one of them, `first_word_invalid`, turns out to fire
+on **100 % of frames** on this hardware.
 
 ---
 
@@ -481,22 +486,60 @@ should not allocate new packet magics from the `0xC51100xx` series** — see
 
 ---
 
-## 8. Open questions I could not close without hardware
+## 8. Open questions — now answered on real hardware
 
-Listing these rather than guessing:
+**Status: MEASURED.** Board `34:5f:45:aa:6f:8c`, ESP32-D0WD-V3 rev v3.1, 4 MB
+flash, flashed from CI run 32388159744 and run for a 600-second soak on
+2026-08-20. Evidence: `data/phase3/stageA-soak-10min.json` (committed); raw
+console logs stay local per §7 of the Phase 3 procedure. Reproduce with
+`python tools/stage-a-gate.py --udp --duration 600`.
 
-1. **Actual free DRAM after Wi-Fi + CSI + DSP init on a WROOM-32.** §4.2 argues it
-   fits; only a boot log proves it.
-2. **Whether the build links within IRAM** with `ESP_WIFI_EXTRA_IRAM_OPT=y` (§4.3).
-3. **Achievable CSI frame rate** on the original ESP32 under the MGMT-only filter.
-   The S3 figure is ~20 Hz; the ESP32's Wi-Fi driver and IRQ behaviour differ enough
-   that this needs its own measurement.
-4. **Whether the `wDev_ProcessFiq` SPI-cache crash (RuView#396) reproduces.** It was
-   diagnosed on the S3. The existing rate gate should cover us, but the original
-   ESP32's cache architecture is different and this needs a soak test.
-5. **How often `first_word_invalid` is actually set** on this silicon (§7.1).
-6. **Real-world variance separation** between empty-room and occupied-room — the
-   entire premise of Phase 3, and genuinely unknown until measured in your room.
+| # | Question asked in the audit | Answer | Verdict |
+|---|---|---|---|
+| 1 | Free DRAM after Wi-Fi + CSI + DSP init? | **136 824 B low-water**, 142 456 B free, slope −0.3 B/s over 600 s | Comfortable. The §4.2 estimate held. |
+| 2 | Does it link within IRAM with `EXTRA_IRAM_OPT=y`? | Yes — no overflow, image 893 856 B, 53 % partition slack | The flagged risk did not materialise. |
+| 3 | Achievable CSI frame rate? | **11.90 Hz sustained** (9.9–13.0 Hz), Nyquist ceiling **5.95 Hz** | Lower than the S3's ~20 Hz. See below. |
+| 4 | Does the `wDev_ProcessFiq` crash reproduce? | 0 reboots in 600 s | Provisionally clear; needs the 24 h soak. |
+| 5 | How often is `first_word_invalid` set? | **100.0 % of frames (7047/7047)** | Far worse than assumed. See below. |
+| 6 | Does variance separate occupied from empty? | Still open | Stage B. |
+
+### 8.1 The rate is ~12 Hz, and roughly half of it is thrown away by us
+
+The radio delivers about **23 callbacks/second**; the firmware's early rate gate
+(`CSI_MIN_PROCESS_INTERVAL_US`) discards roughly half — measured `cb=7047` against
+`drop=8534` over the same window. So 11.9 Hz is a *firmware policy* number, not a
+hardware ceiling.
+
+That gate exists to prevent the RuView#396 SPI-cache crash, so it is not free to
+raise. But it means the Nyquist ceiling of 5.95 Hz is self-imposed and there is
+probably headroom if a soak test shows the original ESP32 does not reproduce #396.
+That is a measurement to run, not an assumption to act on.
+
+### 8.2 `first_word_invalid` is set on every single frame
+
+Not "sometimes", not "on some silicon" — **100.0 %**, 7047 of 7047 frames, with the
+DSP correctly excluding 2 bins (`skip=2`) on all of them.
+
+This makes §7.1 considerably more serious than it read as a code review. Upstream
+discards this flag everywhere, so on the original ESP32 upstream feeds
+hardware-invalid I/Q into amplitude, phase and Welford variance **on every frame**,
+at a fixed subcarrier index — precisely the bias profile that corrupts a
+variance-threshold presence detector. The fix was not tidying.
+
+Whether the S3 also sets it this often is untested and worth checking, since the
+same defect would apply there.
+
+### 8.3 All three LTF combinations appear
+
+`len=128 / sc=64 / sig=0` dominates (LLTF only, non-HT), with `len=256 / sc=128 /
+sig=1` (LLTF+HT-LTF) and `len=384 / sc=192 / sig=1 / bw40=1` (all three LTFs,
+40 MHz) also observed. That is exactly the ESP-IDF documented table in §2.3,
+confirmed on silicon.
+
+### 8.4 Still open
+
+- The 24-hour A7 soak (§4 of the runbook).
+- Everything in Stage B — whether any of this separates a person from an empty room.
 
 ---
 
