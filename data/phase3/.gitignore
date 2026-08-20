@@ -1,0 +1,6 @@
+# Phase 3 recordings are RF observations of a room in a home. They stay local:
+# raw captures are never committed. Only committed analysis outputs (the JSON
+# reports produced by stage-a-gate.py / csi-analyse.py) may be added explicitly.
+*.rvcsi
+*.jsonl
+*.log
