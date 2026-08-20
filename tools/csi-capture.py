@@ -112,6 +112,34 @@ MESH_MSG_TYPES = {
     0x07: "ANOMALY_ALERT",
 }
 
+# ADR-110 sec A0.12 cross-node sync packet, 32 bytes, emitted by
+# csi_collector every CONFIG_C6_SYNC_EVERY_N_FRAMES CSI frames (default 20).
+# At ~20 Hz CSI that is ~1 Hz on the wire. Present on a single node too --
+# it advertises this node's clock so a second node could pair against it.
+SYNC_MAGIC = 0xC511A110
+SYNC_PKT_SIZE = 32
+SYNC_FLAG_LEADER = 0x01
+SYNC_FLAG_VALID = 0x02
+SYNC_FLAG_OFFSET_SET = 0x04
+
+
+def decode_sync(data: bytes) -> dict | None:
+    """Decode an ADR-110 sync packet, or None if this is not one."""
+    if len(data) < 4 or struct.unpack_from("<I", data, 0)[0] != SYNC_MAGIC:
+        return None
+    if len(data) < SYNC_PKT_SIZE:
+        return {"type": "sync", "error": f"short packet: {len(data)}B"}
+    node_id, version, flags = data[4], data[5], data[6]
+    local_us, epoch_us, seq = struct.unpack_from("<QQI", data, 8)
+    return {
+        "type": "sync", "node_id": node_id, "version": version,
+        "local_us": local_us, "epoch_us": epoch_us, "sequence": seq,
+        "is_leader": bool(flags & SYNC_FLAG_LEADER),
+        "sync_valid": bool(flags & SYNC_FLAG_VALID),
+        "offset_set": bool(flags & SYNC_FLAG_OFFSET_SET),
+    }
+
+
 # .rvcsi container: header, then repeating [u64 t_ns][u16 len][payload].
 RVCSI_MAGIC = b"RVCSI\x00"
 RVCSI_VERSION = 1
@@ -242,6 +270,8 @@ def classify(data: bytes) -> str:
         return "sibling"
     if magic == MESH_MAGIC:
         return "mesh"
+    if magic == SYNC_MAGIC:
+        return "sync"
     return "unknown"
 
 
@@ -290,6 +320,7 @@ class Counters:
     diag: int = 0
     sibling: int = 0
     mesh: int = 0
+    sync: int = 0
     unknown: int = 0
     runt: int = 0
     bytes_total: int = 0
@@ -321,6 +352,7 @@ class Counters:
             "diag_packets": self.diag,
             "sibling_packets": self.sibling,
             "mesh_packets": self.mesh,
+            "sync_packets": self.sync,
             "mesh_message_types": self.mesh_types,
             "unknown_packets": self.unknown,
             "runt_packets": self.runt,
@@ -473,6 +505,11 @@ def cmd_record(args: argparse.Namespace) -> int:
                             "first_word_invalid": frame.first_word_invalid,
                             "amplitudes": frame.amplitudes(),
                         }) + "\n")
+                elif kind == "sync":
+                    decoded = decode_sync(data)
+                    if decoded is not None:
+                        decoded.update({"ts_ns": t_ns, "ts_utc": utc_now()})
+                        side.write(json.dumps(decoded) + chr(10))
                 elif kind == "diag":
                     decoded = decode_diag(data)
                     if decoded is not None:
@@ -540,7 +577,8 @@ def cmd_monitor(args: argparse.Namespace) -> int:
             if now - last >= 2.0:
                 print(f"  [rx] csi={counters.csi} ({counters.csi / max(now - t0, 1e-9):.1f}/s) "
                       f"diag={counters.diag} sibling={counters.sibling} "
-                      f"mesh={counters.mesh} unknown={counters.unknown} "
+                      f"mesh={counters.mesh} sync={counters.sync} "
+                      f"unknown={counters.unknown} "
                       f"fwi={counters.fwi_frames}")
                 last = now
     except KeyboardInterrupt:

@@ -1,0 +1,227 @@
+starting in 120s -- leave the room now if this run requires it
+  120s until recording starts
+  119s until recording starts
+  109s until recording starts
+   99s until recording starts
+   89s until recording starts
+   79s until recording starts
+   69s until recording starts
+   59s until recording starts
+   49s until recording starts
+   39s until recording starts
+   29s until recording starts
+   19s until recording starts
+    9s until recording starts
+recording now.
+recording  label='empty-baseline'  port=5005  duration=900.0s
+  raw     data\phase3\empty-baseline-20260820T211716Z.rvcsi
+  sidecar data\phase3\empty-baseline-20260820T211716Z.jsonl
+  Ctrl-C to stop early.
+
+  t=    5.0s  csi=103     ( 20.5/s)  diag=5    fwi=103      0.02 MB
+  t=   10.0s  csi=201     ( 20.0/s)  diag=10   fwi=201      0.04 MB
+  t=   15.1s  csi=299     ( 19.9/s)  diag=15   fwi=299      0.05 MB
+  t=   20.1s  csi=396     ( 19.7/s)  diag=20   fwi=396      0.07 MB
+  t=   25.1s  csi=496     ( 19.8/s)  diag=25   fwi=496      0.09 MB
+  t=   30.1s  csi=586     ( 19.5/s)  diag=30   fwi=586      0.11 MB
+  t=   35.1s  csi=669     ( 19.0/s)  diag=35   fwi=669      0.12 MB
+  t=   40.1s  csi=767     ( 19.1/s)  diag=41   fwi=767      0.14 MB
+  t=   45.2s  csi=861     ( 19.1/s)  diag=46   fwi=861      0.15 MB
+  t=   50.2s  csi=957     ( 19.1/s)  diag=51   fwi=957      0.17 MB
+  t=   55.2s  csi=1057    ( 19.1/s)  diag=56   fwi=1057     0.19 MB
+  t=   60.2s  csi=1157    ( 19.2/s)  diag=61   fwi=1157     0.21 MB
+  t=   65.2s  csi=1256    ( 19.3/s)  diag=66   fwi=1256     0.23 MB
+  t=   70.3s  csi=1353    ( 19.3/s)  diag=71   fwi=1353     0.24 MB
+  t=   75.3s  csi=1457    ( 19.4/s)  diag=76   fwi=1457     0.26 MB
+  t=   80.3s  csi=1556    ( 19.4/s)  diag=81   fwi=1556     0.28 MB
+  t=   85.3s  csi=1655    ( 19.4/s)  diag=86   fwi=1655     0.30 MB
+  t=   90.3s  csi=1755    ( 19.4/s)  diag=91   fwi=1755     0.31 MB
+  t=   95.3s  csi=1858    ( 19.5/s)  diag=96   fwi=1858     0.33 MB
+  t=  100.3s  csi=1960    ( 19.5/s)  diag=101  fwi=1960     0.35 MB
+  t=  105.4s  csi=2059    ( 19.5/s)  diag=106  fwi=2059     0.37 MB
+  t=  110.4s  csi=2156    ( 19.5/s)  diag=111  fwi=2156     0.39 MB
+  t=  115.4s  csi=2255    ( 19.5/s)  diag=116  fwi=2255     0.40 MB
+  t=  120.4s  csi=2356    ( 19.6/s)  diag=121  fwi=2356     0.42 MB
+  t=  125.4s  csi=2459    ( 19.6/s)  diag=126  fwi=2459     0.44 MB
+  t=  130.5s  csi=2560    ( 19.6/s)  diag=131  fwi=2560     0.46 MB
+  t=  135.5s  csi=2663    ( 19.7/s)  diag=136  fwi=2663     0.47 MB
+  t=  140.5s  csi=2761    ( 19.7/s)  diag=141  fwi=2761     0.49 MB
+  t=  145.5s  csi=2864    ( 19.7/s)  diag=146  fwi=2864     0.51 MB
+  t=  150.5s  csi=2964    ( 19.7/s)  diag=151  fwi=2964     0.53 MB
+  t=  155.6s  csi=3064    ( 19.7/s)  diag=156  fwi=3064     0.54 MB
+  t=  160.6s  csi=3163    ( 19.7/s)  diag=161  fwi=3163     0.56 MB
+  t=  165.6s  csi=3266    ( 19.7/s)  diag=166  fwi=3266     0.58 MB
+  t=  170.6s  csi=3364    ( 19.7/s)  diag=171  fwi=3364     0.60 MB
+  t=  175.6s  csi=3465    ( 19.7/s)  diag=176  fwi=3465     0.62 MB
+  t=  180.6s  csi=3568    ( 19.8/s)  diag=181  fwi=3568     0.63 MB
+  t=  185.6s  csi=3666    ( 19.7/s)  diag=186  fwi=3666     0.65 MB
+  t=  190.7s  csi=3768    ( 19.8/s)  diag=191  fwi=3768     0.67 MB
+  t=  195.7s  csi=3866    ( 19.8/s)  diag=196  fwi=3866     0.69 MB
+  t=  200.7s  csi=3969    ( 19.8/s)  diag=201  fwi=3969     0.71 MB
+  t=  205.7s  csi=4073    ( 19.8/s)  diag=206  fwi=4073     0.73 MB
+  t=  210.7s  csi=4175    ( 19.8/s)  diag=211  fwi=4175     0.74 MB
+  t=  215.8s  csi=4276    ( 19.8/s)  diag=216  fwi=4276     0.76 MB
+  t=  220.8s  csi=4374    ( 19.8/s)  diag=221  fwi=4374     0.78 MB
+  t=  225.8s  csi=4474    ( 19.8/s)  diag=226  fwi=4474     0.80 MB
+  t=  230.8s  csi=4574    ( 19.8/s)  diag=231  fwi=4574     0.81 MB
+  t=  235.8s  csi=4670    ( 19.8/s)  diag=236  fwi=4670     0.83 MB
+  t=  240.9s  csi=4770    ( 19.8/s)  diag=241  fwi=4770     0.85 MB
+  t=  245.9s  csi=4872    ( 19.8/s)  diag=246  fwi=4872     0.87 MB
+  t=  250.9s  csi=4974    ( 19.8/s)  diag=251  fwi=4974     0.88 MB
+  t=  255.9s  csi=5073    ( 19.8/s)  diag=256  fwi=5073     0.90 MB
+  t=  260.9s  csi=5173    ( 19.8/s)  diag=261  fwi=5173     0.92 MB
+  t=  265.9s  csi=5276    ( 19.8/s)  diag=266  fwi=5276     0.94 MB
+  t=  271.0s  csi=5377    ( 19.8/s)  diag=271  fwi=5377     0.96 MB
+  t=  276.0s  csi=5478    ( 19.9/s)  diag=276  fwi=5478     0.97 MB
+  t=  281.0s  csi=5579    ( 19.9/s)  diag=281  fwi=5579     0.99 MB
+  t=  286.0s  csi=5679    ( 19.9/s)  diag=286  fwi=5679     1.01 MB
+  t=  291.0s  csi=5781    ( 19.9/s)  diag=291  fwi=5781     1.03 MB
+  t=  296.0s  csi=5882    ( 19.9/s)  diag=296  fwi=5882     1.05 MB
+  t=  301.1s  csi=5977    ( 19.9/s)  diag=301  fwi=5977     1.06 MB
+  t=  306.1s  csi=6080    ( 19.9/s)  diag=306  fwi=6080     1.08 MB
+  t=  311.1s  csi=6177    ( 19.9/s)  diag=311  fwi=6177     1.10 MB
+  t=  316.1s  csi=6276    ( 19.9/s)  diag=316  fwi=6276     1.11 MB
+  t=  321.1s  csi=6378    ( 19.9/s)  diag=322  fwi=6378     1.13 MB
+  t=  326.2s  csi=6480    ( 19.9/s)  diag=327  fwi=6480     1.15 MB
+  t=  331.2s  csi=6581    ( 19.9/s)  diag=332  fwi=6581     1.17 MB
+  t=  336.2s  csi=6684    ( 19.9/s)  diag=337  fwi=6684     1.19 MB
+  t=  341.2s  csi=6784    ( 19.9/s)  diag=342  fwi=6784     1.20 MB
+  t=  346.2s  csi=6885    ( 19.9/s)  diag=347  fwi=6885     1.22 MB
+  t=  351.2s  csi=6986    ( 19.9/s)  diag=352  fwi=6986     1.24 MB
+  t=  356.3s  csi=7088    ( 19.9/s)  diag=357  fwi=7088     1.26 MB
+  t=  361.3s  csi=7191    ( 19.9/s)  diag=362  fwi=7191     1.28 MB
+  t=  366.3s  csi=7290    ( 19.9/s)  diag=367  fwi=7290     1.30 MB
+  t=  371.3s  csi=7389    ( 19.9/s)  diag=372  fwi=7389     1.31 MB
+  t=  376.3s  csi=7490    ( 19.9/s)  diag=377  fwi=7490     1.33 MB
+  t=  381.3s  csi=7588    ( 19.9/s)  diag=382  fwi=7588     1.35 MB
+  t=  386.4s  csi=7690    ( 19.9/s)  diag=387  fwi=7690     1.37 MB
+  t=  391.4s  csi=7790    ( 19.9/s)  diag=392  fwi=7790     1.39 MB
+  t=  396.4s  csi=7891    ( 19.9/s)  diag=397  fwi=7891     1.41 MB
+  t=  401.4s  csi=7994    ( 19.9/s)  diag=402  fwi=7994     1.42 MB
+  t=  406.4s  csi=8093    ( 19.9/s)  diag=407  fwi=8093     1.44 MB
+  t=  411.4s  csi=8193    ( 19.9/s)  diag=412  fwi=8193     1.46 MB
+  t=  416.5s  csi=8294    ( 19.9/s)  diag=417  fwi=8294     1.48 MB
+  t=  421.5s  csi=8397    ( 19.9/s)  diag=422  fwi=8397     1.49 MB
+  t=  426.5s  csi=8497    ( 19.9/s)  diag=427  fwi=8497     1.51 MB
+  t=  431.5s  csi=8599    ( 19.9/s)  diag=432  fwi=8599     1.53 MB
+  t=  436.5s  csi=8701    ( 19.9/s)  diag=437  fwi=8701     1.55 MB
+  t=  441.6s  csi=8804    ( 19.9/s)  diag=442  fwi=8804     1.57 MB
+  t=  446.6s  csi=8903    ( 19.9/s)  diag=447  fwi=8903     1.58 MB
+  t=  451.6s  csi=9002    ( 19.9/s)  diag=452  fwi=9002     1.60 MB
+  t=  456.6s  csi=9102    ( 19.9/s)  diag=457  fwi=9102     1.62 MB
+  t=  461.6s  csi=9203    ( 19.9/s)  diag=462  fwi=9203     1.64 MB
+  t=  466.6s  csi=9302    ( 19.9/s)  diag=467  fwi=9302     1.66 MB
+  t=  471.7s  csi=9404    ( 19.9/s)  diag=472  fwi=9404     1.67 MB
+  t=  476.7s  csi=9507    ( 19.9/s)  diag=477  fwi=9507     1.69 MB
+  t=  481.8s  csi=9610    ( 19.9/s)  diag=482  fwi=9610     1.71 MB
+  t=  486.9s  csi=9714    ( 20.0/s)  diag=487  fwi=9714     1.73 MB
+  t=  491.9s  csi=9814    ( 20.0/s)  diag=492  fwi=9814     1.75 MB
+  t=  496.9s  csi=9916    ( 20.0/s)  diag=497  fwi=9916     1.76 MB
+  t=  501.9s  csi=10015   ( 20.0/s)  diag=502  fwi=10015    1.78 MB
+  t=  506.9s  csi=10117   ( 20.0/s)  diag=507  fwi=10117    1.80 MB
+  t=  511.9s  csi=10219   ( 20.0/s)  diag=512  fwi=10219    1.82 MB
+  t=  517.0s  csi=10321   ( 20.0/s)  diag=517  fwi=10321    1.84 MB
+  t=  522.0s  csi=10424   ( 20.0/s)  diag=522  fwi=10424    1.86 MB
+  t=  527.0s  csi=10523   ( 20.0/s)  diag=527  fwi=10523    1.87 MB
+  t=  532.0s  csi=10626   ( 20.0/s)  diag=532  fwi=10626    1.89 MB
+  t=  537.0s  csi=10725   ( 20.0/s)  diag=537  fwi=10725    1.91 MB
+  t=  542.0s  csi=10824   ( 20.0/s)  diag=542  fwi=10824    1.93 MB
+  t=  547.1s  csi=10927   ( 20.0/s)  diag=547  fwi=10927    1.95 MB
+  t=  552.1s  csi=11025   ( 20.0/s)  diag=552  fwi=11025    1.96 MB
+  t=  557.1s  csi=11128   ( 20.0/s)  diag=557  fwi=11128    1.98 MB
+  t=  562.1s  csi=11230   ( 20.0/s)  diag=562  fwi=11230    2.00 MB
+  t=  567.1s  csi=11333   ( 20.0/s)  diag=567  fwi=11333    2.02 MB
+  t=  572.2s  csi=11432   ( 20.0/s)  diag=573  fwi=11432    2.03 MB
+  t=  577.2s  csi=11531   ( 20.0/s)  diag=578  fwi=11531    2.05 MB
+  t=  582.2s  csi=11633   ( 20.0/s)  diag=583  fwi=11633    2.07 MB
+  t=  587.2s  csi=11735   ( 20.0/s)  diag=588  fwi=11735    2.09 MB
+  t=  592.2s  csi=11838   ( 20.0/s)  diag=593  fwi=11838    2.11 MB
+  t=  597.3s  csi=11936   ( 20.0/s)  diag=598  fwi=11936    2.12 MB
+  t=  602.3s  csi=12039   ( 20.0/s)  diag=603  fwi=12039    2.14 MB
+  t=  607.3s  csi=12137   ( 20.0/s)  diag=608  fwi=12137    2.16 MB
+  t=  612.3s  csi=12235   ( 20.0/s)  diag=613  fwi=12235    2.17 MB
+  t=  617.3s  csi=12337   ( 20.0/s)  diag=618  fwi=12337    2.19 MB
+  t=  622.3s  csi=12440   ( 20.0/s)  diag=623  fwi=12440    2.21 MB
+  t=  627.3s  csi=12541   ( 20.0/s)  diag=628  fwi=12541    2.23 MB
+  t=  632.4s  csi=12640   ( 20.0/s)  diag=633  fwi=12640    2.25 MB
+  t=  637.4s  csi=12740   ( 20.0/s)  diag=638  fwi=12740    2.27 MB
+  t=  642.4s  csi=12841   ( 20.0/s)  diag=643  fwi=12841    2.28 MB
+  t=  647.4s  csi=12938   ( 20.0/s)  diag=648  fwi=12938    2.30 MB
+  t=  652.4s  csi=13040   ( 20.0/s)  diag=653  fwi=13040    2.32 MB
+  t=  657.5s  csi=13141   ( 20.0/s)  diag=658  fwi=13141    2.34 MB
+  t=  662.5s  csi=13244   ( 20.0/s)  diag=663  fwi=13244    2.35 MB
+  t=  667.5s  csi=13345   ( 20.0/s)  diag=668  fwi=13345    2.37 MB
+  t=  672.5s  csi=13442   ( 20.0/s)  diag=673  fwi=13442    2.39 MB
+  t=  677.5s  csi=13543   ( 20.0/s)  diag=678  fwi=13543    2.41 MB
+  t=  682.5s  csi=13642   ( 20.0/s)  diag=683  fwi=13642    2.42 MB
+  t=  687.6s  csi=13742   ( 20.0/s)  diag=688  fwi=13742    2.44 MB
+  t=  692.6s  csi=13842   ( 20.0/s)  diag=693  fwi=13842    2.46 MB
+  t=  697.6s  csi=13946   ( 20.0/s)  diag=698  fwi=13946    2.48 MB
+  t=  702.6s  csi=14047   ( 20.0/s)  diag=703  fwi=14047    2.50 MB
+  t=  707.6s  csi=14149   ( 20.0/s)  diag=708  fwi=14149    2.51 MB
+  t=  712.6s  csi=14249   ( 20.0/s)  diag=713  fwi=14249    2.53 MB
+  t=  717.7s  csi=14348   ( 20.0/s)  diag=718  fwi=14348    2.55 MB
+  t=  722.7s  csi=14449   ( 20.0/s)  diag=723  fwi=14449    2.57 MB
+  t=  727.8s  csi=14550   ( 20.0/s)  diag=728  fwi=14550    2.59 MB
+  t=  732.8s  csi=14650   ( 20.0/s)  diag=733  fwi=14650    2.61 MB
+  t=  737.8s  csi=14749   ( 20.0/s)  diag=738  fwi=14749    2.62 MB
+  t=  742.8s  csi=14851   ( 20.0/s)  diag=743  fwi=14851    2.64 MB
+  t=  747.8s  csi=14953   ( 20.0/s)  diag=748  fwi=14953    2.66 MB
+  t=  752.8s  csi=15054   ( 20.0/s)  diag=753  fwi=15054    2.67 MB
+  t=  757.9s  csi=15153   ( 20.0/s)  diag=758  fwi=15153    2.69 MB
+  t=  762.9s  csi=15254   ( 20.0/s)  diag=763  fwi=15254    2.71 MB
+  t=  767.9s  csi=15355   ( 20.0/s)  diag=768  fwi=15355    2.73 MB
+  t=  772.9s  csi=15455   ( 20.0/s)  diag=773  fwi=15455    2.75 MB
+  t=  777.9s  csi=15556   ( 20.0/s)  diag=778  fwi=15556    2.76 MB
+  t=  782.9s  csi=15657   ( 20.0/s)  diag=783  fwi=15657    2.78 MB
+  t=  788.0s  csi=15756   ( 20.0/s)  diag=788  fwi=15756    2.80 MB
+  t=  793.0s  csi=15858   ( 20.0/s)  diag=793  fwi=15858    2.82 MB
+  t=  798.0s  csi=15959   ( 20.0/s)  diag=798  fwi=15959    2.83 MB
+  t=  803.0s  csi=16058   ( 20.0/s)  diag=803  fwi=16058    2.85 MB
+  t=  808.0s  csi=16158   ( 20.0/s)  diag=808  fwi=16158    2.87 MB
+  t=  813.1s  csi=16257   ( 20.0/s)  diag=813  fwi=16257    2.89 MB
+  t=  818.1s  csi=16358   ( 20.0/s)  diag=818  fwi=16358    2.90 MB
+  t=  823.1s  csi=16459   ( 20.0/s)  diag=823  fwi=16459    2.92 MB
+  t=  828.1s  csi=16555   ( 20.0/s)  diag=829  fwi=16555    2.94 MB
+  t=  833.2s  csi=16656   ( 20.0/s)  diag=833  fwi=16656    2.96 MB
+  t=  838.2s  csi=16760   ( 20.0/s)  diag=839  fwi=16760    2.98 MB
+  t=  843.2s  csi=16861   ( 20.0/s)  diag=844  fwi=16861    3.00 MB
+  t=  848.2s  csi=16961   ( 20.0/s)  diag=849  fwi=16961    3.01 MB
+  t=  853.3s  csi=17057   ( 20.0/s)  diag=854  fwi=17057    3.03 MB
+  t=  858.4s  csi=17155   ( 20.0/s)  diag=859  fwi=17155    3.05 MB
+  t=  863.4s  csi=17260   ( 20.0/s)  diag=864  fwi=17260    3.07 MB
+  t=  868.5s  csi=17361   ( 20.0/s)  diag=869  fwi=17361    3.08 MB
+  t=  873.5s  csi=17460   ( 20.0/s)  diag=874  fwi=17460    3.10 MB
+  t=  878.5s  csi=17560   ( 20.0/s)  diag=879  fwi=17560    3.12 MB
+  t=  883.5s  csi=17661   ( 20.0/s)  diag=884  fwi=17661    3.14 MB
+  t=  888.5s  csi=17761   ( 20.0/s)  diag=889  fwi=17761    3.16 MB
+  t=  893.5s  csi=17862   ( 20.0/s)  diag=894  fwi=17862    3.17 MB
+  t=  898.6s  csi=17964   ( 20.0/s)  diag=899  fwi=17964    3.19 MB
+
+stopped: duration reached
+{
+  "csi_frames": 17994,
+  "diag_packets": 900,
+  "sibling_packets": 2681,
+  "mesh_packets": 30,
+  "mesh_message_types": {
+    "HEALTH": 30
+  },
+  "unknown_packets": 900,
+  "runt_packets": 0,
+  "bytes_total": 3197170,
+  "csi_frames_first_word_invalid": 17994,
+  "csi_frame_sizes": {
+    "148": 16639,
+    "276": 191,
+    "404": 1164
+  },
+  "unknown_magics": {
+    "0xC511A110": 900
+  },
+  "label": "empty-baseline",
+  "stop_reason": "duration reached",
+  "elapsed_s": 900.013,
+  "csi_rate_hz": 19.993,
+  "ended_utc": "2026-08-20T21:34:17.038Z"
+}
