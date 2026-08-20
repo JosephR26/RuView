@@ -45,6 +45,13 @@ CONFIG_ESP_WIFI_CSI_ENABLED=y
 # CONFIG_DISPLAY_ENABLE is not set
 # CONFIG_WASM_ENABLE is not set
 
+# ── Onboard LED (ADR-183) ──
+# The DevKitC-32 has no addressable WS2812 — only a plain LED on GPIO 2 —
+# so the 40 Hz gamma visualiser has nothing to drive. main.c skips WS2812
+# init on this target regardless; turning the Kconfig off as well keeps the
+# unused colormap code out of the image.
+# CONFIG_LED_GAMMA_VIZ is not set
+
 # ── Fork-local diagnostics (ESP32_CSI_PORT.md commit 4) ──
 # Per-second measured counters over serial + UDP. This is how the open
 # questions in ESP32_ORIGINAL_COMPATIBILITY.md §8 get answered from the
