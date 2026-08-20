@@ -1,10 +1,13 @@
 # Phase 3 — validating what the DevKitC-32 can actually sense
 
-**Status:** Procedure. No sensing results exist yet.
+**Status:** Stage A **PASSED** on real hardware (2026-08-20). Stage B not yet
+run -- a transmitter-mixing confound was measured first and must be resolved
+before the run set begins. See section 4b.
 **Prerequisites:** [`ESP32_ORIGINAL_COMPATIBILITY.md`](ESP32_ORIGINAL_COMPATIBILITY.md),
 [`ESP32_CSI_PORT.md`](ESP32_CSI_PORT.md)
-**Evidence status of every claim below:** `CLAIMED` until a captured runtime log
-from real ESP32 silicon exists in this repository.
+**Evidence status:** Stage A is `MEASURED` (board `34:5f:45:aa:6f:8c`,
+`data/phase3/stageA-soak-10min.json`). Everything about *sensing* remains
+`CLAIMED` -- no presence result exists.
 
 ---
 
@@ -153,6 +156,73 @@ Notes on the two controls, because they are the runs most likely to get skipped:
 Log ground truth by hand alongside each run (a phone timestamp note is fine).
 The label is operator-asserted, not measured — `csi-capture.py` records it as
 such in the file header and does not treat it as evidence.
+
+---
+
+## 4b. MEASURED CONFOUND: transmitter mixing (found 2026-08-20)
+
+**Read this before recording any Stage B run.** The first `empty-baseline`
+capture (17 994 frames, 900 s, house empty) contains a confound large enough to
+invalidate naive comparisons.
+
+### What was measured
+
+RSSI over the run is cleanly **bimodal**, with almost nothing between -63 and
+-45 dBm:
+
+| Cluster | RSSI | Frames | Mean amplitude |
+|---|---|---:|---:|
+| Near | -24 to -36 dBm | 8 503 (51 %) | 13.05 (sd 4.59) |
+| Far | ~-69 dBm | 8 136 (49 %) | 20.66 (sd 2.52) |
+
+Both on channel 6. Two distinct transmitters, split almost evenly -- consistent
+with the hub plus an extender, the extender being the one the node associates
+to (`bssid = 0a:3c:c5:9b:82:ae`, locally-administered bit set).
+
+The problem is the interleaving:
+
+```
+consecutive frames switching source     : 94.3 % (15 686 of 16 638)
+mean |amplitude jump| when source SWITCHES : 8.05
+mean |amplitude jump| when source is SAME  : 2.24
+                                     ratio : 3.6x
+```
+
+**The activity metric is therefore dominated by which transmitter sent each
+frame, not by whether anything in the room moved.** A presence threshold built
+on this would be keying off the traffic mix. It is precisely the failure that
+produces a confident, meaningless result.
+
+### Why it cannot be fixed in post-processing
+
+**ADR-018 carries no source MAC.** `csi_collector` has `info->mac` in the
+callback and does not serialise it, so a recorded frame cannot be attributed to
+a transmitter after the fact.
+
+RSSI clustering rescued this particular recording only because the two sources
+happen to sit ~36 dB apart. With three transmitters at comparable distances --
+the router-plus-two-extenders configuration in section 9 of the project brief --
+that proxy stops working entirely.
+
+### Options
+
+| | Effect | Cost |
+|---|---|---|
+| Turn extenders off | Single source | Degrades household Wi-Fi; forces the node onto the distant hub at ~-69 dBm, changing the dominant path, so the baseline needs retaking anyway |
+| **MAC filter (ADR-060 `--filter-mac`)** | Single source, geometry unchanged | Rate roughly halves; no code change |
+| **Source MAC in ADR-018** | All transmitters retained and separable offline | Firmware change and reflash |
+
+The MAC filter is the quick unblock. Adding the source MAC (or a 2-byte hash) to
+the frame is the correct fix, and it is a *prerequisite* for the multi-transmitter
+experiment rather than an optimisation of it: attributed, extra transmitters are
+extra viewpoints; blended, they are noise.
+
+### Consequence for the run set
+
+`empty-baseline-20260820T211716Z` was recorded unfiltered and is retained as
+evidence of the confound, not as a usable reference distribution. Every Stage B
+run must share one transmitter configuration, and the baseline must be re-taken
+under whichever is chosen.
 
 ---
 
