@@ -388,13 +388,38 @@ def cmd_record(args: argparse.Namespace) -> int:
         "note": args.note,
         "started_utc": utc_now(),
         "port": args.port,
+        "start_delay_s": args.start_delay,
         "tool": "tools/csi-capture.py",
         "rvcsi_version": RVCSI_VERSION,
         # Ground truth is asserted by the operator, not measured by the tool.
         "evidence": "MEASURED (raw capture); label is operator-asserted",
     }
 
+    # Leave-the-room delay. An "empty" baseline that contains the operator
+    # walking out is not an empty baseline, and if the operator then sits at
+    # the machine for the whole run it is a stationary-person recording
+    # wearing the wrong label -- which would later be compared against the
+    # real stationary-person run and show no separation, for entirely the
+    # wrong reason. Bind the socket first so nothing is missed at t=0, then
+    # discard traffic during the countdown.
     sock = bind_socket(args.port, args.bind)
+    if args.start_delay > 0:
+        print(f"starting in {args.start_delay:.0f}s -- leave the room now "
+              f"if this run requires it")
+        t_end = time.time() + args.start_delay
+        last_announced = None
+        while time.time() < t_end:
+            remaining = int(t_end - time.time())
+            try:
+                sock.recvfrom(4096)          # drain, do not record
+            except socket.timeout:
+                pass
+            decade = remaining - (remaining % 10)
+            if decade != last_announced and remaining > 5:
+                print(f"  {remaining:3d}s until recording starts", flush=True)
+                last_announced = decade
+        print("recording now.", flush=True)
+
     counters = Counters()
     max_bytes = int(args.max_size_mb * 1024 * 1024) if args.max_size_mb else None
     deadline = time.time() + args.duration if args.duration else None
@@ -605,6 +630,10 @@ def main() -> int:
                        help="output directory")
     p_rec.add_argument("--max-size-mb", type=float, default=0,
                        help="stop after this many MB (0 = no cap)")
+    p_rec.add_argument("--start-delay", type=float, default=0, metavar="SECONDS",
+                       help="wait this long before recording begins, so you can "
+                            "leave the room. Traffic during the countdown is "
+                            "discarded, not recorded.")
     p_rec.add_argument("--retain-days", type=float, default=0,
                        help="delete recordings in --out older than this "
                             "before starting (0 = keep everything)")
