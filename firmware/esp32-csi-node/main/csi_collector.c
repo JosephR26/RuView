@@ -90,6 +90,59 @@ static int64_t s_last_send_us = 0;
 static int64_t s_last_process_us = 0;
 static uint32_t s_early_drop = 0;
 
+/* ---- Measured capture statistics (fork-local, csi_diag) ----
+ * Written only from the CSI callback, read by csi_collector_get_stats().
+ * Single producer, and every field is independently meaningful, so a torn
+ * read across a snapshot costs at most one slightly inconsistent diagnostic
+ * line — not worth a lock on the Wi-Fi task's hot path. */
+static uint32_t s_fwi_count       = 0;   /**< Frames with first_word_invalid. */
+static uint16_t s_last_len        = 0;
+static uint16_t s_last_subcarrier = 0;
+static uint8_t  s_last_channel    = 0;
+static uint8_t  s_last_sig_mode   = 0;
+static uint8_t  s_last_bw40       = 0;
+static uint8_t  s_last_stbc       = 0;
+static uint8_t  s_last_secondary  = 0;
+static int32_t  s_rssi_sum        = 0;
+static int32_t  s_nf_sum          = 0;
+static uint32_t s_window_samples  = 0;
+static int8_t   s_rssi_min        = 127;
+static int8_t   s_rssi_max        = -128;
+
+void csi_collector_get_stats(csi_stats_t *out, bool reset_window)
+{
+    if (out != NULL) {
+        out->cb_count         = s_cb_count;
+        out->early_drop       = s_early_drop;
+        out->send_ok          = s_send_ok;
+        out->send_fail        = s_send_fail;
+        out->rate_skip        = s_rate_skip;
+        out->fwi_count        = s_fwi_count;
+        out->last_len         = s_last_len;
+        out->last_subcarriers = s_last_subcarrier;
+        out->last_channel     = s_last_channel;
+        out->last_sig_mode    = s_last_sig_mode;
+        out->last_bw40        = s_last_bw40;
+        out->last_stbc        = s_last_stbc;
+        out->last_secondary   = s_last_secondary;
+        out->window_samples   = s_window_samples;
+        out->rssi_min         = (s_window_samples > 0) ? s_rssi_min : 0;
+        out->rssi_max         = (s_window_samples > 0) ? s_rssi_max : 0;
+        out->rssi_mean        = (s_window_samples > 0)
+                                    ? (int8_t)(s_rssi_sum / (int32_t)s_window_samples) : 0;
+        out->noise_floor_mean = (s_window_samples > 0)
+                                    ? (int8_t)(s_nf_sum / (int32_t)s_window_samples) : 0;
+    }
+
+    if (reset_window) {
+        s_rssi_sum       = 0;
+        s_nf_sum         = 0;
+        s_window_samples = 0;
+        s_rssi_min       = 127;
+        s_rssi_max       = -128;
+    }
+}
+
 /* ---- ADR-029: Channel-hop state ---- */
 
 /** Channel hop table (populated from NVS at boot or via set_hop_table). */
@@ -294,6 +347,35 @@ static void wifi_csi_callback(void *ctx, wifi_csi_info_t *info)
     }
 
     s_cb_count++;
+
+    /* Record measured per-frame metadata for csi_diag. Cheap: a handful of
+     * stores, no allocation, no formatting. Everything here is a value the
+     * driver just handed us. */
+    if (info->first_word_invalid) s_fwi_count++;
+    s_last_len        = (uint16_t)info->len;
+    s_last_subcarrier = (uint16_t)(info->len / 2);
+    s_last_channel    = info->rx_ctrl.channel;
+#if CONFIG_SOC_WIFI_HE_SUPPORT
+    /* HE-capable chips expose the baseband format and the 40 MHz secondary
+     * offset instead of the legacy sig_mode/cwb/stbc triple. */
+    s_last_sig_mode  = (uint8_t)info->rx_ctrl.cur_bb_format;
+    s_last_secondary = (uint8_t)info->rx_ctrl.second;
+    s_last_bw40      = (info->rx_ctrl.second != 0) ? 1u : 0u;
+    s_last_stbc      = 0;
+#else
+    s_last_sig_mode  = (uint8_t)info->rx_ctrl.sig_mode;
+    s_last_bw40      = (uint8_t)info->rx_ctrl.cwb;
+    s_last_stbc      = (uint8_t)info->rx_ctrl.stbc;
+    s_last_secondary = (uint8_t)info->rx_ctrl.secondary_channel;
+#endif
+    {
+        const int8_t rssi = (int8_t)info->rx_ctrl.rssi;
+        if (rssi < s_rssi_min) s_rssi_min = rssi;
+        if (rssi > s_rssi_max) s_rssi_max = rssi;
+        s_rssi_sum += rssi;
+        s_nf_sum   += (int8_t)info->rx_ctrl.noise_floor;
+        s_window_samples++;
+    }
 
     if (s_cb_count <= 3 || (s_cb_count % 100) == 0) {
         ESP_LOGI(TAG, "CSI cb #%lu: len=%d rssi=%d ch=%d",

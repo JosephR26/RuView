@@ -432,6 +432,44 @@ menu "ADR-018 frame extensions (ADR-110)"
 
 endmenu
 
+menu "CSI diagnostics (fork-local)"
+
+    config CSI_DIAG_ENABLE
+        bool "Emit periodic measured CSI/heap diagnostics"
+        default n
+        help
+            Emit a per-interval snapshot of measured quantities only —
+            CSI callback rate, frame length and PHY mode, RSSI and noise
+            floor, send success/failure counts, first_word_invalid count,
+            and free/minimum-free/largest-block heap — to both the serial
+            console and a UDP packet (magic 0xC5111001).
+
+            This exists so the open questions about the original ESP32
+            (does the DSP fit in DRAM, what CSI rate does the radio
+            actually sustain, how often is first_word_invalid set) are
+            answered from the device rather than estimated. Every field is
+            a measurement; nothing here is an inference.
+
+            Costs roughly 200 bytes of RAM and one esp_timer. The UDP
+            packet uses the low-rate priority path, so it is not starved
+            by the CSI stream's ENOMEM backoff.
+
+            Enabled by default on the esp32 target overlay; off elsewhere
+            so existing S3/C6 images are unchanged.
+
+    config CSI_DIAG_INTERVAL_MS
+        int "Diagnostic emission interval (ms)"
+        depends on CSI_DIAG_ENABLE
+        default 1000
+        range 200 60000
+        help
+            How often to emit a diagnostic snapshot. Rates are computed
+            over this window, so shorter intervals give noisier rate
+            estimates. 1000 ms matches the per-second convention used by
+            the rest of the firmware's counters.
+
+endmenu
+
 menu "Mock CSI (QEMU Testing)"
     config CSI_MOCK_ENABLED
         bool "Enable mock CSI generator (for QEMU testing)"

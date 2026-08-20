@@ -3,6 +3,9 @@ set(SRCS
     "edge_processing.c" "ota_update.c" "power_mgmt.c"
     "wasm_runtime.c" "wasm_upload.c" "rvf_parser.c"
     "mmwave_sensor.c"
+    # Fork-local: measured-only CSI/heap diagnostics. Always in SRCS;
+    # the whole translation unit is empty unless CONFIG_CSI_DIAG_ENABLE.
+    "csi_diag.c"
     "swarm_bridge.c"
     # ADR-081 — adaptive CSI mesh firmware kernel
     "rv_radio_ops_esp32.c"

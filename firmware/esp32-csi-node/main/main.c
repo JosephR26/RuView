@@ -21,6 +21,7 @@
 #include "led_strip.h"
 
 #include "csi_collector.h"
+#include "csi_diag.h"          /* Fork-local: measured-only diagnostics. */
 #include "stream_sender.h"
 #include "nvs_config.h"
 #include "edge_processing.h"
@@ -381,6 +382,17 @@ void app_main(void)
     if (edge_ret != ESP_OK) {
         ESP_LOGW(TAG, "Edge processing init failed: %s (continuing without edge DSP)",
                  esp_err_to_name(edge_ret));
+    }
+
+    /* Fork-local: periodic measured-only CSI/heap diagnostics.
+     * Started after the collector, the UDP sender and the edge pipeline so the
+     * first snapshot reports the steady-state configuration rather than a
+     * half-initialised one. Compiles to an inline no-op unless
+     * CONFIG_CSI_DIAG_ENABLE. */
+    esp_err_t diag_ret = csi_diag_init();
+    if (diag_ret != ESP_OK) {
+        ESP_LOGW(TAG, "CSI diagnostics init failed: %s (continuing without diagnostics)",
+                 esp_err_to_name(diag_ret));
     }
 
     /* Initialize OTA update HTTP server (requires network). */
