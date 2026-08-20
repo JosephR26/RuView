@@ -96,6 +96,22 @@ SIBLING_MAGICS = {
     0xC5110007: "ADR-040 WASM output / ADR-095 temporal (magic collision)",
 }
 
+# ADR-081 adaptive-mesh envelope. A separate magic series from the
+# 0xC51100xx siblings above: 16-byte header (magic, version, type,
+# sender_role, auth_class, epoch, payload_len, reserved) then a typed body.
+# adaptive_controller emits HEALTH on its slow tick and FEATURE_DELTA on the
+# medium tick, so a single-node capture contains these even with no mesh peer.
+MESH_MAGIC = 0xC5118100
+MESH_MSG_TYPES = {
+    0x01: "TIME_SYNC",
+    0x02: "ROLE_ASSIGN",
+    0x03: "CHANNEL_PLAN",
+    0x04: "CALIBRATION_START",
+    0x05: "FEATURE_DELTA",
+    0x06: "HEALTH",
+    0x07: "ANOMALY_ALERT",
+}
+
 # .rvcsi container: header, then repeating [u64 t_ns][u16 len][payload].
 RVCSI_MAGIC = b"RVCSI\x00"
 RVCSI_VERSION = 1
@@ -207,6 +223,13 @@ def decode_diag(data: bytes) -> dict | None:
     }
 
 
+def mesh_msg_name(data: bytes) -> str | None:
+    """Name of an ADR-081 mesh message, or None if this is not one."""
+    if len(data) < 16 or struct.unpack_from("<I", data, 0)[0] != MESH_MAGIC:
+        return None
+    return MESH_MSG_TYPES.get(data[5], f"type-0x{data[5]:02x}")
+
+
 def classify(data: bytes) -> str:
     if len(data) < 4:
         return "runt"
@@ -217,6 +240,8 @@ def classify(data: bytes) -> str:
         return "diag"
     if magic in SIBLING_MAGICS:
         return "sibling"
+    if magic == MESH_MAGIC:
+        return "mesh"
     return "unknown"
 
 
@@ -264,12 +289,14 @@ class Counters:
     csi: int = 0
     diag: int = 0
     sibling: int = 0
+    mesh: int = 0
     unknown: int = 0
     runt: int = 0
     bytes_total: int = 0
     fwi_frames: int = 0
     lengths: dict[int, int] = field(default_factory=dict)
     unknown_magics: dict[str, int] = field(default_factory=dict)
+    mesh_types: dict[str, int] = field(default_factory=dict)
 
     def add(self, data: bytes) -> str:
         kind = classify(data)
@@ -280,6 +307,9 @@ class Counters:
             frame = decode_csi(data)
             if frame and frame.first_word_invalid:
                 self.fwi_frames += 1
+        elif kind == "mesh":
+            name = mesh_msg_name(data) or "malformed"
+            self.mesh_types[name] = self.mesh_types.get(name, 0) + 1
         elif kind == "unknown":
             magic = f"0x{struct.unpack_from('<I', data, 0)[0]:08X}"
             self.unknown_magics[magic] = self.unknown_magics.get(magic, 0) + 1
@@ -290,6 +320,8 @@ class Counters:
             "csi_frames": self.csi,
             "diag_packets": self.diag,
             "sibling_packets": self.sibling,
+            "mesh_packets": self.mesh,
+            "mesh_message_types": self.mesh_types,
             "unknown_packets": self.unknown,
             "runt_packets": self.runt,
             "bytes_total": self.bytes_total,
@@ -483,7 +515,8 @@ def cmd_monitor(args: argparse.Namespace) -> int:
             if now - last >= 2.0:
                 print(f"  [rx] csi={counters.csi} ({counters.csi / max(now - t0, 1e-9):.1f}/s) "
                       f"diag={counters.diag} sibling={counters.sibling} "
-                      f"unknown={counters.unknown} fwi={counters.fwi_frames}")
+                      f"mesh={counters.mesh} unknown={counters.unknown} "
+                      f"fwi={counters.fwi_frames}")
                 last = now
     except KeyboardInterrupt:
         pass
