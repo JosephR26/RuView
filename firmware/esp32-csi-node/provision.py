@@ -50,6 +50,19 @@ import sys
 import tempfile
 
 
+# This file's help text and log messages contain non-ASCII characters (em
+# dashes, arrows). On a Windows console defaulting to cp1252 that makes even
+# `provision.py --help` die with UnicodeEncodeError before argparse finishes
+# printing, and a provisioning run can fail after it has already written to
+# the device. Degrade unencodable characters instead of raising. No-op on
+# platforms that already use UTF-8.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(errors="replace")
+    except (AttributeError, ValueError):
+        pass
+
+
 # NVS partition table offset — default for ESP-IDF 4MB flash with standard
 # partition scheme.  The "nvs" partition starts at 0x9000 (36864) and is
 # 0x6000 (24576) bytes.

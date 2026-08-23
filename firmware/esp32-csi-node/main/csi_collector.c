@@ -90,6 +90,59 @@ static int64_t s_last_send_us = 0;
 static int64_t s_last_process_us = 0;
 static uint32_t s_early_drop = 0;
 
+/* ---- Measured capture statistics (fork-local, csi_diag) ----
+ * Written only from the CSI callback, read by csi_collector_get_stats().
+ * Single producer, and every field is independently meaningful, so a torn
+ * read across a snapshot costs at most one slightly inconsistent diagnostic
+ * line — not worth a lock on the Wi-Fi task's hot path. */
+static uint32_t s_fwi_count       = 0;   /**< Frames with first_word_invalid. */
+static uint16_t s_last_len        = 0;
+static uint16_t s_last_subcarrier = 0;
+static uint8_t  s_last_channel    = 0;
+static uint8_t  s_last_sig_mode   = 0;
+static uint8_t  s_last_bw40       = 0;
+static uint8_t  s_last_stbc       = 0;
+static uint8_t  s_last_secondary  = 0;
+static int32_t  s_rssi_sum        = 0;
+static int32_t  s_nf_sum          = 0;
+static uint32_t s_window_samples  = 0;
+static int8_t   s_rssi_min        = 127;
+static int8_t   s_rssi_max        = -128;
+
+void csi_collector_get_stats(csi_stats_t *out, bool reset_window)
+{
+    if (out != NULL) {
+        out->cb_count         = s_cb_count;
+        out->early_drop       = s_early_drop;
+        out->send_ok          = s_send_ok;
+        out->send_fail        = s_send_fail;
+        out->rate_skip        = s_rate_skip;
+        out->fwi_count        = s_fwi_count;
+        out->last_len         = s_last_len;
+        out->last_subcarriers = s_last_subcarrier;
+        out->last_channel     = s_last_channel;
+        out->last_sig_mode    = s_last_sig_mode;
+        out->last_bw40        = s_last_bw40;
+        out->last_stbc        = s_last_stbc;
+        out->last_secondary   = s_last_secondary;
+        out->window_samples   = s_window_samples;
+        out->rssi_min         = (s_window_samples > 0) ? s_rssi_min : 0;
+        out->rssi_max         = (s_window_samples > 0) ? s_rssi_max : 0;
+        out->rssi_mean        = (s_window_samples > 0)
+                                    ? (int8_t)(s_rssi_sum / (int32_t)s_window_samples) : 0;
+        out->noise_floor_mean = (s_window_samples > 0)
+                                    ? (int8_t)(s_nf_sum / (int32_t)s_window_samples) : 0;
+    }
+
+    if (reset_window) {
+        s_rssi_sum       = 0;
+        s_nf_sum         = 0;
+        s_window_samples = 0;
+        s_rssi_min       = 127;
+        s_rssi_max       = -128;
+    }
+}
+
 /* ---- ADR-029: Channel-hop state ---- */
 
 /** Channel hop table (populated from NVS at boot or via set_hop_table). */
@@ -119,8 +172,12 @@ static esp_timer_handle_t s_hop_timer = NULL;
  *   [12..15] Sequence number (LE u32)
  *   [16]     RSSI (i8)
  *   [17]     Noise floor (i8)
- *   [18..19] Reserved
- *   [20..]   I/Q data (raw bytes from ESP-IDF callback)
+ *   [18]     PPDU type (ADR-110; 0 when CONFIG_CSI_FRAME_HE_TAGGING is off)
+ *   [19]     Flags — bit 0 bw40, bit 2 STBC, bit 4 cross-node sync valid,
+ *            bit 5 first_word_invalid (bins 0-1 are hardware-invalid).
+ *            See CSI_FLAG_* in csi_collector.h. Unset bits read as zero, so
+ *            readers that predate a flag are unaffected.
+ *   [20..]   I/Q data (raw bytes from ESP-IDF callback, imag then real per bin)
  */
 size_t csi_serialize_frame(const wifi_csi_info_t *info, uint8_t *buf, size_t buf_len)
 {
@@ -191,6 +248,27 @@ size_t csi_serialize_frame(const wifi_csi_info_t *info, uint8_t *buf, size_t buf
      * Byte-18 PPDU type encoding stays the same across targets:
      *   0=HT/legacy bucket, 1=HE-SU, 2=HE-MU, 3=HE-TB, 0xFF=unknown
      */
+
+    /* Byte 19 bit 5 — first_word_invalid.
+     *
+     * ESP-IDF sets wifi_csi_info_t.first_word_invalid when the first four
+     * bytes of the CSI payload are hardware-invalid. The ESP-IDF Wi-Fi guide
+     * documents this as a hardware limitation and it is most commonly seen on
+     * the original ESP32. Prior to this change the flag was dropped on the
+     * floor everywhere in the tree, so those two bins reached consumers
+     * indistinguishable from real channel data — and because they sit at a
+     * fixed index, they biased the per-subcarrier variance that the presence
+     * heuristic thresholds on.
+     *
+     * Deliberately NOT fixed by trimming the payload: that would shift every
+     * subcarrier index by two and silently break every existing host parser.
+     * The payload stays verbatim, the byte-6 subcarrier count stays the same,
+     * and consumers are told which bins to ignore.
+     *
+     * Computed outside the CONFIG_CSI_FRAME_HE_TAGGING guard below so the flag
+     * is reported even in builds that leave PPDU tagging off. */
+    const uint8_t fwi_bit = info->first_word_invalid ? CSI_FLAG_FIRST_WORD_INVALID : 0u;
+
 #ifdef CONFIG_CSI_FRAME_HE_TAGGING
     uint8_t ppdu_type = 0xFF;
     uint8_t flags     = 0;
@@ -231,10 +309,10 @@ size_t csi_serialize_frame(const wifi_csi_info_t *info, uint8_t *buf, size_t buf
 #endif
     if (c6_sync_espnow_is_valid()) flags |= (1 << 4);  /* ESP-NOW sync valid (D1 workaround) */
     buf[18] = ppdu_type;
-    buf[19] = flags;
+    buf[19] = flags | fwi_bit;
 #else
     buf[18] = 0;
-    buf[19] = 0;
+    buf[19] = fwi_bit;
 #endif
 
     /* I/Q data */
@@ -270,6 +348,35 @@ static void wifi_csi_callback(void *ctx, wifi_csi_info_t *info)
 
     s_cb_count++;
 
+    /* Record measured per-frame metadata for csi_diag. Cheap: a handful of
+     * stores, no allocation, no formatting. Everything here is a value the
+     * driver just handed us. */
+    if (info->first_word_invalid) s_fwi_count++;
+    s_last_len        = (uint16_t)info->len;
+    s_last_subcarrier = (uint16_t)(info->len / 2);
+    s_last_channel    = info->rx_ctrl.channel;
+#if CONFIG_SOC_WIFI_HE_SUPPORT
+    /* HE-capable chips expose the baseband format and the 40 MHz secondary
+     * offset instead of the legacy sig_mode/cwb/stbc triple. */
+    s_last_sig_mode  = (uint8_t)info->rx_ctrl.cur_bb_format;
+    s_last_secondary = (uint8_t)info->rx_ctrl.second;
+    s_last_bw40      = (info->rx_ctrl.second != 0) ? 1u : 0u;
+    s_last_stbc      = 0;
+#else
+    s_last_sig_mode  = (uint8_t)info->rx_ctrl.sig_mode;
+    s_last_bw40      = (uint8_t)info->rx_ctrl.cwb;
+    s_last_stbc      = (uint8_t)info->rx_ctrl.stbc;
+    s_last_secondary = (uint8_t)info->rx_ctrl.secondary_channel;
+#endif
+    {
+        const int8_t rssi = (int8_t)info->rx_ctrl.rssi;
+        if (rssi < s_rssi_min) s_rssi_min = rssi;
+        if (rssi > s_rssi_max) s_rssi_max = rssi;
+        s_rssi_sum += rssi;
+        s_nf_sum   += (int8_t)info->rx_ctrl.noise_floor;
+        s_window_samples++;
+    }
+
     if (s_cb_count <= 3 || (s_cb_count % 100) == 0) {
         ESP_LOGI(TAG, "CSI cb #%lu: len=%d rssi=%d ch=%d",
                  (unsigned long)s_cb_count, info->len,
@@ -300,10 +407,14 @@ static void wifi_csi_callback(void *ctx, wifi_csi_info_t *info)
         }
     }
 
-    /* ADR-039: Enqueue raw I/Q into edge processing ring buffer. */
+    /* ADR-039: Enqueue raw I/Q into edge processing ring buffer.
+     * Pass first_word_invalid through so the DSP can exclude the two
+     * hardware-invalid bins from variance and phase instead of treating
+     * them as channel data. */
     if (info->buf && info->len > 0) {
-        edge_enqueue_csi((const uint8_t *)info->buf, (uint16_t)info->len,
-                         (int8_t)info->rx_ctrl.rssi, info->rx_ctrl.channel);
+        edge_enqueue_csi_ex((const uint8_t *)info->buf, (uint16_t)info->len,
+                            (int8_t)info->rx_ctrl.rssi, info->rx_ctrl.channel,
+                            info->first_word_invalid);
     }
 
     /* ADR-110 §A0.11/§A0.12 — Emit a sync-packet every N CSI frames so the

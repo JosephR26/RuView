@@ -52,7 +52,8 @@ static float s_scratch_br[EDGE_PHASE_HISTORY_LEN];
 static float s_scratch_hr[EDGE_PHASE_HISTORY_LEN];
 
 static inline bool ring_push(const uint8_t *iq, uint16_t len,
-                             int8_t rssi, uint8_t channel)
+                             int8_t rssi, uint8_t channel,
+                             bool first_word_invalid)
 {
     uint32_t next = (s_ring.head + 1) % EDGE_RING_SLOTS;
     if (next == s_ring.tail) {
@@ -66,6 +67,7 @@ static inline bool ring_push(const uint8_t *iq, uint16_t len,
     slot->iq_len = copy_len;
     slot->rssi = rssi;
     slot->channel = channel;
+    slot->first_word_invalid = first_word_invalid;
     slot->timestamp_us = (uint32_t)(esp_timer_get_time() & 0xFFFFFFFF);
 
     /* Memory barrier: ensure slot data is visible before advancing head. */
@@ -330,6 +332,18 @@ static float hr_smooth_push(float hr)
 static edge_config_t s_cfg;
 
 /** Per-subcarrier running variance (for top-K selection). */
+/* Leading subcarrier bins excluded because the hardware flagged them invalid
+ * (wifi_csi_info_t.first_word_invalid — see edge_enqueue_csi_ex). 0 until the
+ * first flagged frame arrives, then latched at CSI_FIRST_WORD_INVALID_BINS.
+ *
+ * Latched rather than per-frame on purpose. The flag is reported per frame, but
+ * what it describes is a property of the capture path, not of one packet. If we
+ * honoured it per frame, a bin would accumulate real variance on unflagged
+ * frames and garbage on flagged ones, and could still win top-K on the strength
+ * of the garbage. Latching, plus resetting the affected accumulators once,
+ * makes the exclusion consistent for the whole session. */
+static uint16_t s_sc_skip = 0;
+
 static edge_welford_t s_subcarrier_var[EDGE_MAX_SUBCARRIERS];
 
 /** Previous phase per subcarrier (for unwrapping). */
@@ -423,9 +437,16 @@ static volatile bool s_pkt_valid;
  */
 static void update_top_k(uint16_t n_subcarriers)
 {
+    /* Hardware-invalid leading bins are not candidates — see s_sc_skip. */
+    if (n_subcarriers <= s_sc_skip) {
+        s_top_k_count = 0;
+        return;
+    }
+    const uint16_t n_candidates = n_subcarriers - s_sc_skip;
+
     uint8_t k = s_cfg.top_k_count;
     if (k > EDGE_TOP_K) k = EDGE_TOP_K;
-    if (k > n_subcarriers) k = (uint8_t)n_subcarriers;
+    if (k > n_candidates) k = (uint8_t)n_candidates;
 
     /* Simple selection: find K largest variances. */
     bool used[EDGE_MAX_SUBCARRIERS];
@@ -433,9 +454,9 @@ static void update_top_k(uint16_t n_subcarriers)
 
     for (uint8_t ki = 0; ki < k; ki++) {
         double best_var = -1.0;
-        uint8_t best_idx = 0;
+        uint8_t best_idx = (uint8_t)s_sc_skip;
 
-        for (uint16_t sc = 0; sc < n_subcarriers; sc++) {
+        for (uint16_t sc = s_sc_skip; sc < n_subcarriers; sc++) {
             if (!used[sc]) {
                 double v = welford_variance(&s_subcarrier_var[sc]);
                 if (v > best_var) {
@@ -1035,6 +1056,25 @@ static void process_frame(const edge_ring_slot_t *slot)
     uint16_t n_subcarriers = slot->iq_len / 2;
     if (n_subcarriers == 0 || n_subcarriers > EDGE_MAX_SUBCARRIERS) return;
 
+    /* Latch the hardware-invalid leading bins the first time we see the flag,
+     * and discard whatever statistics those bins accumulated beforehand. */
+    if (slot->first_word_invalid && s_sc_skip < CSI_FIRST_WORD_INVALID_BINS) {
+        s_sc_skip = CSI_FIRST_WORD_INVALID_BINS;
+        memset(s_subcarrier_var, 0,
+               CSI_FIRST_WORD_INVALID_BINS * sizeof(s_subcarrier_var[0]));
+        memset(s_prev_phase, 0,
+               CSI_FIRST_WORD_INVALID_BINS * sizeof(s_prev_phase[0]));
+        s_top_k_count = 0;   /* Force re-selection without the dead bins. */
+        ESP_LOGW(TAG,
+                 "first_word_invalid: excluding subcarrier bins 0-%d from DSP "
+                 "(hardware-invalid I/Q)",
+                 CSI_FIRST_WORD_INVALID_BINS - 1);
+    }
+
+    /* If the radio ever returns a frame shorter than the excluded prefix there
+     * is nothing left to analyse. */
+    if (n_subcarriers <= s_sc_skip) return;
+
     s_frame_count++;
     s_latest_rssi = slot->rssi;
 
@@ -1069,9 +1109,15 @@ static void process_frame(const edge_ring_slot_t *slot)
 
     const float sample_rate = s_sample_rate_hz;
 
-    /* --- Step 1-2: Phase extraction + unwrapping per subcarrier --- */
+    /* --- Step 1-2: Phase extraction + unwrapping per subcarrier ---
+     * Starts at s_sc_skip so hardware-invalid bins never enter the pipeline.
+     * The excluded entries are zeroed rather than left uninitialised: the WASM
+     * host API (step 14) hands the whole array out and must not leak stack. */
     float phases[EDGE_MAX_SUBCARRIERS];
-    for (uint16_t sc = 0; sc < n_subcarriers; sc++) {
+    for (uint16_t sc = 0; sc < s_sc_skip; sc++) {
+        phases[sc] = 0.0f;
+    }
+    for (uint16_t sc = s_sc_skip; sc < n_subcarriers; sc++) {
         float raw_phase = extract_phase(slot->iq_data, sc);
 
         if (s_phase_initialized) {
@@ -1084,7 +1130,7 @@ static void process_frame(const edge_ring_slot_t *slot)
     s_phase_initialized = true;
 
     /* --- Step 3: Welford variance update per subcarrier --- */
-    for (uint16_t sc = 0; sc < n_subcarriers; sc++) {
+    for (uint16_t sc = s_sc_skip; sc < n_subcarriers; sc++) {
         welford_update(&s_subcarrier_var[sc], (double)phases[sc]);
     }
 
@@ -1234,9 +1280,14 @@ static void process_frame(const edge_ring_slot_t *slot)
 
     /* --- Step 14 (ADR-040): Dispatch to WASM modules --- */
     if (s_cfg.tier >= 2 && s_pkt_valid) {
-        /* Extract amplitudes from I/Q for WASM host API. */
+        /* Extract amplitudes from I/Q for WASM host API. Hardware-invalid
+         * leading bins are reported as zero rather than as computed garbage,
+         * so a module cannot mistake them for a weak-but-real channel. */
         float amplitudes[EDGE_MAX_SUBCARRIERS];
-        for (uint16_t sc = 0; sc < n_subcarriers; sc++) {
+        for (uint16_t sc = 0; sc < s_sc_skip; sc++) {
+            amplitudes[sc] = 0.0f;
+        }
+        for (uint16_t sc = s_sc_skip; sc < n_subcarriers; sc++) {
             int8_t i_val = (int8_t)slot->iq_data[sc * 2];
             int8_t q_val = (int8_t)slot->iq_data[sc * 2 + 1];
             amplitudes[sc] = sqrtf((float)(i_val * i_val + q_val * q_val));
@@ -1244,7 +1295,10 @@ static void process_frame(const edge_ring_slot_t *slot)
 
         /* Build variance array from Welford state. */
         float variances[EDGE_MAX_SUBCARRIERS];
-        for (uint16_t sc = 0; sc < n_subcarriers; sc++) {
+        for (uint16_t sc = 0; sc < s_sc_skip; sc++) {
+            variances[sc] = 0.0f;
+        }
+        for (uint16_t sc = s_sc_skip; sc < n_subcarriers; sc++) {
             variances[sc] = (float)welford_variance(&s_subcarrier_var[sc]);
         }
 
@@ -1304,7 +1358,19 @@ static void edge_task(void *arg)
 bool edge_enqueue_csi(const uint8_t *iq_data, uint16_t iq_len,
                       int8_t rssi, uint8_t channel)
 {
-    return ring_push(iq_data, iq_len, rssi, channel);
+    return ring_push(iq_data, iq_len, rssi, channel, false);
+}
+
+bool edge_enqueue_csi_ex(const uint8_t *iq_data, uint16_t iq_len,
+                         int8_t rssi, uint8_t channel,
+                         bool first_word_invalid)
+{
+    return ring_push(iq_data, iq_len, rssi, channel, first_word_invalid);
+}
+
+uint16_t edge_get_skipped_subcarriers(void)
+{
+    return s_sc_skip;
 }
 
 bool edge_get_vitals(edge_vitals_pkt_t *pkt)

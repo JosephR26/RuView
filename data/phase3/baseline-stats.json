@@ -1,0 +1,54 @@
+{
+  "tool": "tools/csi-analyse.py",
+  "evidence": "MEASURED",
+  "window_s": 2.0,
+  "top_k": 8,
+  "recordings": [
+    {
+      "file": "empty-baseline-20260820T211716Z.rvcsi",
+      "label": "empty-baseline",
+      "note": "kitchen, node+laptop position A, house empty (shop trip)",
+      "started_utc": "2026-08-20T21:17:16.944Z",
+      "csi_frames": 17994,
+      "duration_s": 900.0,
+      "observed_csi_rate_hz": 19.99,
+      "subcarrier_counts": {
+        "64": 16639,
+        "128": 191,
+        "192": 1164
+      },
+      "first_word_invalid_frames": 17994,
+      "first_word_invalid_fraction": 1.0,
+      "rssi_mean": -46.7,
+      "rssi_stdev": 19.11,
+      "amp_mean_first_half": 19.012,
+      "amp_mean_second_half": 19.237,
+      "amp_drift_pct": 1.19,
+      "top_variance_subcarriers": [
+        66,
+        96,
+        67,
+        13,
+        14,
+        124,
+        123,
+        12
+      ],
+      "activity": {
+        "2s": {
+          "n_windows": 440,
+          "median": 1888.6648,
+          "p10": 1079.2838,
+          "p90": 3330.7282
+        },
+        "10s": {
+          "n_windows": 90,
+          "median": 2304.5206,
+          "p10": 1889.6019,
+          "p90": 3146.7081
+        }
+      }
+    }
+  ],
+  "comparisons": []
+}

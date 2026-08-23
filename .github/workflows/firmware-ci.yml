@@ -73,6 +73,20 @@ jobs:
             size_limit_kb: 1152
             artifact_app: esp32-csi-node-c6.bin
             artifact_pt: partition-table-c6.bin
+          # Original ESP32 (WROOM-32 / DevKitC-32) — see
+          # ESP32_ORIGINAL_COMPATIBILITY.md. Relies on the auto-applied
+          # sdkconfig.defaults.esp32 overlay, same mechanism as the C6 row.
+          # Display and WASM are compiled out (no PSRAM), so the image is
+          # expected well under the S3 budget — the warn threshold is set
+          # lower to catch unexpected growth rather than to match the S3.
+          - variant: esp32-4mb
+            target: esp32
+            sdkconfig: sdkconfig.defaults
+            partition_table_name: partitions_4mb.csv
+            size_warn_kb: 1000
+            size_limit_kb: 1152
+            artifact_app: esp32-csi-node-esp32.bin
+            artifact_pt: partition-table-esp32.bin
 
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -98,6 +112,18 @@ jobs:
         run: |
           make test_adr110
           ./test_adr110
+
+      # Pins the ADR-018 byte-19 bit-5 encoding, that setting it stays additive
+      # to the ADR-110 flags sharing that byte, the monotonic exclusion latch,
+      # and top-K exclusion of hardware-invalid bins. Runs on the esp32 variant
+      # because that is the target where first_word_invalid is expected, but
+      # the behaviour it pins is target-neutral.
+      - name: Build and run first_word_invalid unit tests
+        if: matrix.variant == 'esp32-4mb'
+        working-directory: firmware/esp32-csi-node/test
+        run: |
+          make test_fwi
+          ./test_fwi
 
       - name: Verify binary size budget
         working-directory: firmware/esp32-csi-node
@@ -162,7 +188,11 @@ jobs:
           mkdir -p release-staging
           cp build/esp32-csi-node.bin                      release-staging/${{ matrix.artifact_app }}
           cp build/partition_table/partition-table.bin     release-staging/${{ matrix.artifact_pt }}
-          if [ "${{ matrix.variant }}" = "8mb" ]; then
+          if [ "${{ matrix.variant }}" = "8mb" ] || [ "${{ matrix.variant }}" = "esp32-4mb" ]; then
+            # The bootloader is chip-specific, so the original-ESP32 variant
+            # cannot reuse the S3 one — it needs its own in the artifact or a
+            # fresh board cannot be flashed. NOTE for flashing: on the original
+            # ESP32 the bootloader goes at 0x1000, not 0x0 as on S3/C6.
             cp build/bootloader/bootloader.bin             release-staging/bootloader.bin
             cp build/ota_data_initial.bin                  release-staging/ota_data_initial.bin
           fi

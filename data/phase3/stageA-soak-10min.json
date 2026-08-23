@@ -1,0 +1,149 @@
+{
+  "tool": "tools/stage-a-gate.py",
+  "started_utc": "2026-08-20T20:21:49+00:00",
+  "elapsed_s": 600.1,
+  "source": "udp:5005",
+  "sample_count": 600,
+  "overall": "PASS",
+  "evidence": "MEASURED",
+  "criteria": {
+    "min_samples": 30,
+    "min_free_heap_bytes": 40960,
+    "min_largest_block_ratio": 0.25,
+    "frag_slope_fail_bytes_per_s": -20.0,
+    "rate_usable_hz": 8.0,
+    "rate_jitter_warn": 0.5
+  },
+  "checks": [
+    {
+      "id": "A7",
+      "question": "Does it stay up?",
+      "verdict": "PASS",
+      "detail": "0 reboot(s) detected over 599s (uptime 131s -> 730s)",
+      "values": {
+        "reboots": 0,
+        "span_s": 599.0,
+        "uptime_first_s": 131,
+        "uptime_last_s": 730
+      }
+    },
+    {
+      "id": "A1",
+      "question": "Associated to the AP?",
+      "verdict": "PASS",
+      "detail": "wifi_connected true in 100.0% of samples",
+      "values": {
+        "connected_fraction": 1.0
+      }
+    },
+    {
+      "id": "A4",
+      "question": "What CSI rate does the radio sustain?",
+      "verdict": "PASS",
+      "detail": "sustained 11.90 Hz; Nyquist ceiling 5.95 Hz",
+      "values": {
+        "median_hz": 11.9,
+        "p10_hz": 10.9,
+        "p90_hz": 13.0,
+        "iqr_over_median": 0.084,
+        "nyquist_ceiling_hz": 5.95,
+        "cb_total_delta": 7047,
+        "drop_total_delta": 7612
+      }
+    },
+    {
+      "id": "A2",
+      "question": "Does the working set fit in DRAM?",
+      "verdict": "PASS",
+      "detail": "low-water mark 136824 B, settled; free-heap slope -0.3 B/s",
+      "values": {
+        "startup_free_heap": 142592,
+        "final_free_heap": 142456,
+        "min_free_heap": 136824,
+        "free_heap_slope_bytes_per_s": -0.283,
+        "min_free_settled": true
+      }
+    },
+    {
+      "id": "A3",
+      "question": "Is the heap fragmenting?",
+      "verdict": "PASS",
+      "detail": "largest block 110592 B (77.6% of free heap), slope +0.0 B/s",
+      "values": {
+        "largest_block_final": 110592,
+        "largest_block_slope_bytes_per_s": 0.0,
+        "largest_block_over_free_heap": 0.7763
+      }
+    },
+    {
+      "id": "A5",
+      "question": "Which LTF fields does the link deliver?",
+      "verdict": "PASS",
+      "detail": "dominant raw CSI length 128 B (LLTF only (non-HT)), 3 distinct length(s)",
+      "values": {
+        "length_histogram": {
+          "128": 560,
+          "256": 1,
+          "384": 39
+        },
+        "subcarriers_last": 64
+      }
+    },
+    {
+      "id": "A6",
+      "question": "Does the hardware flag invalid leading bins?",
+      "verdict": "PASS",
+      "detail": "first_word_invalid on 100.0% of frames (7047/7047); DSP excluding 2 bin(s)",
+      "values": {
+        "fwi_delta": 7047,
+        "cb_delta": 7047,
+        "fwi_fraction": 1.0,
+        "skipped_subcarriers": 2
+      }
+    }
+  ],
+  "first_sample": {
+    "t_host": 1787257310.0894587,
+    "uptime_s": 131,
+    "rate_hz": 11.0,
+    "cb_total": 1592,
+    "drop_total": 1758,
+    "tx_ok": 1591,
+    "tx_total": 1591,
+    "last_len": 128,
+    "subcarriers": 64,
+    "skip": 2,
+    "fwi_total": 1592,
+    "channel": 6,
+    "sig_mode": 0,
+    "bw40": 0,
+    "rssi": -26,
+    "noise_floor": -96,
+    "free_heap": 142592,
+    "min_free_heap": 138812,
+    "largest_block": 110592,
+    "wifi_connected": true
+  },
+  "last_sample": {
+    "t_host": 1787257909.0972505,
+    "uptime_s": 730,
+    "rate_hz": 13.0,
+    "cb_total": 8639,
+    "drop_total": 9370,
+    "tx_ok": 8635,
+    "tx_total": 8635,
+    "last_len": 128,
+    "subcarriers": 64,
+    "skip": 2,
+    "fwi_total": 8639,
+    "channel": 6,
+    "sig_mode": 0,
+    "bw40": 0,
+    "rssi": -37,
+    "noise_floor": -96,
+    "free_heap": 142456,
+    "min_free_heap": 136824,
+    "largest_block": 110592,
+    "wifi_connected": true
+  }
+}

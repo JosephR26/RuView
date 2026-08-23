@@ -82,8 +82,9 @@ typedef struct {
     unsigned sig_mode      : 2;   /**< 0=non-HT 1=HT 3=VHT */
     unsigned cwb           : 1;   /**< 0=20 MHz 1=40 MHz */
     unsigned stbc          : 1;   /**< STBC flag */
+    unsigned secondary_channel : 4; /**< 0=none 1=above 2=below */
     /* Padding to keep alignment predictable. */
-    unsigned _pad          : 18;
+    unsigned _pad          : 14;
 } wifi_pkt_rx_ctrl_t;
 
 /** Minimal wifi_csi_info_t needed by csi_serialize_frame. */
@@ -92,6 +93,10 @@ typedef struct {
     uint8_t            mac[6];
     int16_t            len;     /**< Length of the I/Q buffer in bytes. */
     int8_t            *buf;     /**< Pointer to I/Q data. */
+    /* Hardware limitation flag: when true the first four bytes of buf are
+     * invalid. Real ESP-IDF sets this; csi_serialize_frame reports it in
+     * ADR-018 byte 19 bit 5, so the fuzz harness needs the field to build. */
+    bool               first_word_invalid;
 } wifi_csi_info_t;
 
 /* ---- Kconfig defaults ---- */

@@ -7,6 +7,7 @@
 #define CSI_COLLECTOR_H
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include "esp_err.h"
 #include "esp_wifi_types.h"
@@ -20,8 +21,79 @@
 /** Maximum frame buffer size (header + 4 antennas * 256 subcarriers * 2 bytes). */
 #define CSI_MAX_FRAME_SIZE (CSI_HEADER_SIZE + 4 * 256 * 2)
 
+/* ---- ADR-018 header byte 19: bit flags ----
+ *
+ * Bits 0/2 were defined by ADR-110 alongside the byte-18 PPDU type; bit 4 is
+ * the cross-node sync indicator. Bit 5 is added here. All of these are set
+ * only when the corresponding condition holds, so a reader that does not know
+ * about a bit simply sees zero — the format stays backward compatible.
+ */
+#define CSI_FLAG_BW40               (1u << 0)  /**< 40 MHz bandwidth. */
+#define CSI_FLAG_STBC               (1u << 2)  /**< STBC packet (pre-HE targets). */
+#define CSI_FLAG_SYNC_VALID         (1u << 4)  /**< Cross-node time sync is valid. */
+
+/**
+ * Bit 5 — the ESP-IDF `wifi_csi_info_t.first_word_invalid` flag.
+ *
+ * When set, the first four bytes of the I/Q payload (i.e. the first two
+ * subcarrier bins) are hardware-invalid and must not be interpreted as
+ * channel data. This is a documented hardware limitation, called out
+ * explicitly for the original ESP32 in the ESP-IDF Wi-Fi guide.
+ *
+ * The payload is still transmitted verbatim, and the bins are still counted
+ * in the byte-6 subcarrier count, so subcarrier indexing is unchanged for
+ * every existing reader. Consumers that care should mask bins 0 and 1 when
+ * this bit is set rather than assuming the payload has been shifted.
+ */
+#define CSI_FLAG_FIRST_WORD_INVALID (1u << 5)
+
+/**
+ * Number of leading subcarrier bins invalidated by CSI_FLAG_FIRST_WORD_INVALID.
+ * Four bytes of I/Q, two bytes per bin.
+ */
+#define CSI_FIRST_WORD_INVALID_BINS 2
+
 /** Maximum number of channels in the hop table (ADR-029). */
 #define CSI_HOP_CHANNELS_MAX 6
+
+/**
+ * Snapshot of measured CSI capture counters.
+ *
+ * Every field is something the hardware or driver reported — none of it is
+ * derived or inferred. Populated by csi_collector_get_stats() and consumed by
+ * csi_diag. Cumulative counters are monotonic since boot; the caller computes
+ * rates by differencing across its own interval.
+ */
+typedef struct {
+    uint32_t cb_count;        /**< CSI callbacks accepted (post rate gate). */
+    uint32_t early_drop;      /**< Callbacks dropped by the rate gate. */
+    uint32_t send_ok;         /**< UDP frames sent successfully. */
+    uint32_t send_fail;       /**< UDP send failures. */
+    uint32_t rate_skip;       /**< Frames serialized but not sent (send gate). */
+    uint32_t fwi_count;       /**< Frames with first_word_invalid set. */
+    uint16_t last_len;        /**< info->len of the most recent frame, bytes. */
+    uint16_t last_subcarriers;/**< Subcarrier count of the most recent frame. */
+    uint8_t  last_channel;    /**< rx_ctrl.channel of the most recent frame. */
+    uint8_t  last_sig_mode;   /**< 0=non-HT 1=HT 3=VHT (or HE bb format). */
+    uint8_t  last_bw40;       /**< 1 if the most recent frame was 40 MHz. */
+    uint8_t  last_stbc;       /**< STBC field of the most recent frame. */
+    uint8_t  last_secondary;  /**< Secondary channel offset: 0 none 1 above 2 below. */
+    int8_t   rssi_min;        /**< Minimum RSSI since the last reset. */
+    int8_t   rssi_max;        /**< Maximum RSSI since the last reset. */
+    int8_t   rssi_mean;       /**< Mean RSSI since the last reset. */
+    int8_t   noise_floor_mean;/**< Mean noise floor since the last reset. */
+    uint32_t window_samples;  /**< Frames contributing to the RSSI/noise means. */
+} csi_stats_t;
+
+/**
+ * Snapshot the capture counters.
+ *
+ * @param out          Destination snapshot. Ignored if NULL.
+ * @param reset_window If true, clear the RSSI/noise-floor accumulators so the
+ *                     next snapshot's means cover only the next window.
+ *                     Cumulative counters are never reset.
+ */
+void csi_collector_get_stats(csi_stats_t *out, bool reset_window);
 
 /**
  * Initialize CSI collection.

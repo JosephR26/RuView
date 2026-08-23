@@ -43,10 +43,9 @@ MAIN_DIR  = ../main
 FUZZ_DURATION ?= 30
 FUZZ_JOBS     ?= 1
 
-.PHONY: all clean run_serialize run_edge run_nvs run_all test_adr110 run_adr110 \
-        test_vitals run_vitals test_mmwave_detect run_mmwave_detect host_tests
+.PHONY: all clean run_serialize run_edge run_nvs run_all test_adr110 run_adr110 test_vitals run_vitals test_mmwave_detect run_mmwave_detect test_fwi run_fwi host_tests
 
-all: fuzz_serialize fuzz_edge fuzz_nvs test_adr110 test_vitals test_mmwave_detect
+all: fuzz_serialize fuzz_edge fuzz_nvs test_adr110 test_vitals test_mmwave_detect test_fwi
 
 # --- ADR-110 encoding unit tests ---
 # Host-side, no libFuzzer needed — plain C99 deterministic table tests
@@ -80,8 +79,20 @@ test_mmwave_detect: test_mmwave_detect.c $(MAIN_DIR)/mmwave_detect.h
 run_mmwave_detect: test_mmwave_detect
 	./test_mmwave_detect
 
-host_tests: run_adr110 run_vitals run_mmwave_detect
-	@echo "Host tests passed (ADR-110 + vitals #998/#996 + mmwave detect #1135)"
+# --- ADR-018 first_word_invalid handling ---
+# Host-side, no libFuzzer. Pins the byte-19 bit-5 wire encoding (and that it
+# stays additive to the ADR-110 flags in the same byte), the monotonic latch,
+# and the top-K exclusion of hardware-invalid bins. Pulls CSI_FLAG_* and
+# CSI_FIRST_WORD_INVALID_BINS from ../main/csi_collector.h so the test and the
+# firmware can never disagree about which bit or how many bins.
+test_fwi: test_first_word_invalid.c $(MAIN_DIR)/csi_collector.h
+	cc -std=c99 -Wall -Wextra -Istubs -I$(MAIN_DIR) -o $@ $<
+
+run_fwi: test_fwi
+	./test_fwi
+
+host_tests: run_adr110 run_vitals run_mmwave_detect run_fwi
+	@echo "Host tests passed (ADR-110 + vitals #998/#996 + mmwave detect #1135 + first_word_invalid)"
 
 # --- Serialize fuzzer ---
 # Tests csi_serialize_frame() with random wifi_csi_info_t inputs.
@@ -117,5 +128,5 @@ run_nvs: fuzz_nvs
 run_all: run_serialize run_edge run_nvs
 
 clean:
-	rm -f fuzz_serialize fuzz_edge fuzz_nvs test_adr110 test_vitals
+	rm -f fuzz_serialize fuzz_edge fuzz_nvs test_adr110 test_vitals test_mmwave_detect test_fwi
 	rm -rf corpus_serialize/ corpus_edge/ corpus_nvs/

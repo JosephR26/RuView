@@ -21,6 +21,7 @@
 #include "led_strip.h"
 
 #include "csi_collector.h"
+#include "csi_diag.h"          /* Fork-local: measured-only diagnostics. */
 #include "stream_sender.h"
 #include "nvs_config.h"
 #include "edge_processing.h"
@@ -225,50 +226,65 @@ void app_main(void)
 #else
     const char *target_name = "ESP32";
 #endif
-    ESP_LOGI(TAG, "%s CSI Node (ADR-018 / ADR-110) — v%s — Node ID: %d",
+    ESP_LOGI(TAG, "%s CSI Node (ADR-018 / ADR-110) - v%s - Node ID: %d",
              target_name, app_desc->version, g_nvs_config.node_id);
 
     /* Onboard WS2812. C6 wires the LED to GPIO 8; S3 to GPIO 38 (DevKitC-1 v1.0)
      * or GPIO 48 (DevKitC-1 v1.1 / N16R8 — see #962). On S3 we drive 48 (the
      * common module). On C6, GPIO 38/48 don't exist (only 0-30) — gate by target.
      * Behaviour is set by CONFIG_LED_GAMMA_VIZ (ADR-183): on = 40 Hz gamma flicker
-     * coloured by CSI motion; off = clear the LED at boot. */
+     * coloured by CSI motion; off = clear the LED at boot.
+     *
+     * The original ESP32 (WROOM-32 / DevKitC-32) has no addressable LED at all —
+     * just a plain LED on GPIO 2 — and its GPIO range stops at 39, so the old
+     * `#else` fallthrough to 48 asked the RMT driver for a pin that does not
+     * exist. led_strip_new_rmt_device() rejected it and the return value was
+     * checked, so this was never a boot failure, but it logged a driver error on
+     * every boot. led_gpio < 0 now means "this board has no addressable LED" and
+     * the whole block is skipped. On S3 and C6 led_gpio is a compile-time
+     * constant >= 0, so the guard folds away and codegen is unchanged. */
 #if defined(CONFIG_IDF_TARGET_ESP32C6)
     const int led_gpio = 8;
+#elif defined(CONFIG_IDF_TARGET_ESP32)
+    const int led_gpio = -1;   /* DevKitC-32: no WS2812 on this board. */
 #else
     const int led_gpio = 48;
 #endif
-    led_strip_config_t strip_config = {
-        .strip_gpio_num = led_gpio,
-        .max_leds = 1,
-        .led_model = LED_MODEL_WS2812,
-        .color_component_format = LED_STRIP_COLOR_COMPONENT_FMT_GRB,
-        .flags.invert_out = false,
-    };
-    led_strip_rmt_config_t rmt_config = {
-        .resolution_hz = 10 * 1000 * 1000, // 10MHz
-        .flags.with_dma = false,
-    };
-#if CONFIG_LED_GAMMA_VIZ
-    if (led_strip_new_rmt_device(&strip_config, &rmt_config, &s_viz_led) == ESP_OK) {
-        const esp_timer_create_args_t viz_args = {
-            .callback = &led_gamma_40hz_cb,
-            .name = "led_gamma_40hz",
+    if (led_gpio >= 0) {
+        led_strip_config_t strip_config = {
+            .strip_gpio_num = led_gpio,
+            .max_leds = 1,
+            .led_model = LED_MODEL_WS2812,
+            .color_component_format = LED_STRIP_COLOR_COMPONENT_FMT_GRB,
+            .flags.invert_out = false,
         };
-        esp_timer_handle_t viz_timer;
-        if (esp_timer_create(&viz_args, &viz_timer) == ESP_OK) {
-            esp_timer_start_periodic(viz_timer, 12500); // 12.5 ms toggle → 40 Hz square wave
-            ESP_LOGI(TAG, "Onboard WS2812: 40 Hz gamma flicker (GENUS), colour=CSI motion via ruv-neural-viz, GPIO %d", led_gpio);
+        led_strip_rmt_config_t rmt_config = {
+            .resolution_hz = 10 * 1000 * 1000, // 10MHz
+            .flags.with_dma = false,
+        };
+#if CONFIG_LED_GAMMA_VIZ
+        if (led_strip_new_rmt_device(&strip_config, &rmt_config, &s_viz_led) == ESP_OK) {
+            const esp_timer_create_args_t viz_args = {
+                .callback = &led_gamma_40hz_cb,
+                .name = "led_gamma_40hz",
+            };
+            esp_timer_handle_t viz_timer;
+            if (esp_timer_create(&viz_args, &viz_timer) == ESP_OK) {
+                esp_timer_start_periodic(viz_timer, 12500); // 12.5 ms toggle → 40 Hz square wave
+                ESP_LOGI(TAG, "Onboard WS2812: 40 Hz gamma flicker (GENUS), colour=CSI motion via ruv-neural-viz, GPIO %d", led_gpio);
+            }
         }
-    }
 #else
-    /* Viz disabled — clear the onboard LED at boot and release the RMT channel. */
-    led_strip_handle_t led_strip;
-    if (led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip) == ESP_OK) {
-        led_strip_clear(led_strip);
-        led_strip_del(led_strip);
-    }
+        /* Viz disabled — clear the onboard LED at boot and release the RMT channel. */
+        led_strip_handle_t led_strip;
+        if (led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip) == ESP_OK) {
+            led_strip_clear(led_strip);
+            led_strip_del(led_strip);
+        }
 #endif /* CONFIG_LED_GAMMA_VIZ */
+    } else {
+        ESP_LOGI(TAG, "No addressable onboard LED on this target - skipping WS2812 init");
+    }
 
     /* ADR-110 P4: 802.15.4 mesh time-sync (C6 only).
      * Initialized BEFORE WiFi so it's available even when WiFi STA can't
@@ -366,6 +382,17 @@ void app_main(void)
     if (edge_ret != ESP_OK) {
         ESP_LOGW(TAG, "Edge processing init failed: %s (continuing without edge DSP)",
                  esp_err_to_name(edge_ret));
+    }
+
+    /* Fork-local: periodic measured-only CSI/heap diagnostics.
+     * Started after the collector, the UDP sender and the edge pipeline so the
+     * first snapshot reports the steady-state configuration rather than a
+     * half-initialised one. Compiles to an inline no-op unless
+     * CONFIG_CSI_DIAG_ENABLE. */
+    esp_err_t diag_ret = csi_diag_init();
+    if (diag_ret != ESP_OK) {
+        ESP_LOGW(TAG, "CSI diagnostics init failed: %s (continuing without diagnostics)",
+                 esp_err_to_name(diag_ret));
     }
 
     /* Initialize OTA update HTTP server (requires network). */
@@ -501,7 +528,7 @@ void app_main(void)
         csi_collector_enable_data_capture();
     }
 
-    ESP_LOGI(TAG, "CSI streaming active → %s:%d (edge_tier=%u, OTA=%s, WASM=%s, mmWave=%s, swarm=%s, adapt=%s)",
+    ESP_LOGI(TAG, "CSI streaming active -> %s:%d (edge_tier=%u, OTA=%s, WASM=%s, mmWave=%s, swarm=%s, adapt=%s)",
              g_nvs_config.target_ip, g_nvs_config.target_port,
              g_nvs_config.edge_tier,
              (ota_ret == ESP_OK) ? "ready" : "off",
