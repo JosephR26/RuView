@@ -50,18 +50,35 @@ jobs:
             git diff --submodule=log -- vendor/ || true
           fi
 
+      # Reuse one stable branch (force-pushed each run) instead of a fresh
+      # timestamped branch per run. Every prior run that had changes left an
+      # orphaned `chore/update-submodules-<timestamp>` branch behind, because
+      # `gh pr create` fails whenever "Allow GitHub Actions to create and
+      # approve pull requests" is disabled for this repo (Settings > Actions >
+      # General > Workflow permissions) -- that policy can't be worked around
+      # from workflow YAML, so a fresh branch was created and pushed on every
+      # failed attempt with no PR to show for it.
       - name: Create PR with updates
         if: steps.check.outputs.changed == 'true'
         run: |
-          BRANCH="chore/update-submodules-$(date +%Y%m%d-%H%M%S)"
-          git checkout -b "$BRANCH"
+          BRANCH="chore/update-submodules"
+          git checkout -B "$BRANCH"
           git add vendor/
           git commit -m "chore: update vendor submodules to latest upstream"
-          git push origin "$BRANCH"
-          gh pr create \
+          git push --force origin "$BRANCH"
+
+          if gh pr view "$BRANCH" >/dev/null 2>&1; then
+            echo "PR already open for $BRANCH; branch updated in place."
+            exit 0
+          fi
+
+          if ! gh pr create \
             --title "chore: update vendor submodules" \
             --body "Automated submodule update to the latest upstream commit on each submodule's tracked branch (see \`.gitmodules\`). Review the pointer diff before merging." \
             --base main \
-            --head "$BRANCH"
+            --head "$BRANCH"; then
+            echo "::error::Submodules were bumped and pushed to '$BRANCH', but no pull request could be opened. This repo's Actions policy blocks GITHUB_TOKEN from creating PRs. Either enable 'Allow GitHub Actions to create and approve pull requests' under Settings > Actions > General > Workflow permissions, or add a PAT with pull-request scope as the SUBMODULE_UPDATE_PAT repo secret."
+            exit 1
+          fi
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.SUBMODULE_UPDATE_PAT || secrets.GITHUB_TOKEN }}
