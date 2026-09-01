@@ -9,6 +9,13 @@ permissions:
   contents: write
   pull-requests: write
 
+# Serialize runs against the shared `chore/update-submodules` branch: without
+# this, two overlapping runs (a schedule firing mid-manual-dispatch) can both
+# force-push over each other and race to create the PR.
+concurrency:
+  group: update-submodules
+  cancel-in-progress: false
+
 jobs:
   update:
     runs-on: ubuntu-latest
@@ -67,17 +74,31 @@ jobs:
           git commit -m "chore: update vendor submodules to latest upstream"
           git push --force origin "$BRANCH"
 
-          if gh pr view "$BRANCH" >/dev/null 2>&1; then
+          if ! open_pr_count="$(gh pr list \
+            --head "$BRANCH" \
+            --state open \
+            --json number \
+            --jq 'length' 2>&1)"; then
+            echo "::error::Unable to check for an open PR for $BRANCH: $open_pr_count"
+            exit 1
+          fi
+
+          if [ "$open_pr_count" -gt 0 ]; then
             echo "PR already open for $BRANCH; branch updated in place."
             exit 0
           fi
 
-          if ! gh pr create \
+          if ! pr_error="$(gh pr create \
             --title "chore: update vendor submodules" \
             --body "Automated submodule update to the latest upstream commit on each submodule's tracked branch (see \`.gitmodules\`). Review the pointer diff before merging." \
             --base main \
-            --head "$BRANCH"; then
-            echo "::error::Submodules were bumped and pushed to '$BRANCH', but no pull request could be opened. This repo's Actions policy blocks GITHUB_TOKEN from creating PRs. Either enable 'Allow GitHub Actions to create and approve pull requests' under Settings > Actions > General > Workflow permissions, or add a PAT with pull-request scope as the SUBMODULE_UPDATE_PAT repo secret."
+            --head "$BRANCH" 2>&1)"; then
+            echo "$pr_error"
+            if echo "$pr_error" | grep -qi "not permitted to create or approve pull requests"; then
+              echo "::error::Submodules were bumped and pushed to '$BRANCH', but no pull request could be opened. This repo's Actions policy blocks GITHUB_TOKEN from creating PRs. Either enable 'Allow GitHub Actions to create and approve pull requests' under Settings > Actions > General > Workflow permissions, or add a PAT with pull-request scope as the SUBMODULE_UPDATE_PAT repo secret."
+            else
+              echo "::error::Submodules were bumped and pushed to '$BRANCH', but 'gh pr create' failed: $pr_error"
+            fi
             exit 1
           fi
         env:
